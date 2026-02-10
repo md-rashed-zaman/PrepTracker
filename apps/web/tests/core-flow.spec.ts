@@ -34,6 +34,7 @@ test("core flow: add problem -> due -> review -> ICS", async ({ page, request })
   await expect(page.getByRole("heading", { name: "Due reviews" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Two Sum" })).toBeVisible();
   await page.getByRole("button", { name: "3" }).first().click();
+  await page.getByRole("button", { name: "Confirm" }).first().click();
 
   // Settings: generate ICS URL and fetch it
   await page.goto("/settings");
@@ -54,4 +55,3 @@ test("core flow: add problem -> due -> review -> ICS", async ({ page, request })
   expectNoClientError(page);
   expect(pageErrors, `page errors: ${pageErrors.join("\n")}`).toHaveLength(0);
 });
-

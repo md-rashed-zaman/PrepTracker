@@ -25,11 +25,19 @@ type ContestItem struct {
 	Problem       problems.Problem `json:"problem"`
 	OrderIndex    int              `json:"order_index"`
 	TargetMinutes int              `json:"target_minutes"`
+	Result        *ContestResult   `json:"result,omitempty"`
 }
 
 type ContestWithItems struct {
 	Contest
 	Items []ContestItem `json:"items"`
+}
+
+type ContestResult struct {
+	Grade        *int       `json:"grade,omitempty"`
+	TimeSpentSec *int       `json:"time_spent_sec,omitempty"`
+	SolvedFlag   *bool      `json:"solved_flag,omitempty"`
+	RecordedAt   *time.Time `json:"recorded_at,omitempty"`
 }
 
 type Repository struct {
@@ -114,9 +122,11 @@ func (r *Repository) GetWithItems(ctx context.Context, contestID string, userID 
 	}
 	rows, err := r.pool.Query(ctx, `
 		SELECT ci.order_index, ci.target_minutes,
-		       p.id::text, p.url, p.platform, p.title, p.difficulty, p.topics
+		       p.id::text, p.url, p.platform, p.title, p.difficulty, p.topics,
+		       cr.grade, cr.time_spent_sec, cr.solved_flag, cr.recorded_at
 		FROM contest_items ci
 		JOIN problems p ON p.id = ci.problem_id
+		LEFT JOIN contest_results cr ON cr.contest_id = ci.contest_id AND cr.problem_id = ci.problem_id
 		WHERE ci.contest_id = $1
 		ORDER BY ci.order_index ASC
 	`, contestID)
@@ -127,8 +137,19 @@ func (r *Repository) GetWithItems(ctx context.Context, contestID string, userID 
 	out := ContestWithItems{Contest: c, Items: make([]ContestItem, 0)}
 	for rows.Next() {
 		var it ContestItem
-		if err := rows.Scan(&it.OrderIndex, &it.TargetMinutes, &it.Problem.ID, &it.Problem.URL, &it.Problem.Platform, &it.Problem.Title, &it.Problem.Difficulty, &it.Problem.Topics); err != nil {
+		var grade *int
+		var timeSpentSec *int
+		var solvedFlag *bool
+		var recordedAt *time.Time
+		if err := rows.Scan(
+			&it.OrderIndex, &it.TargetMinutes,
+			&it.Problem.ID, &it.Problem.URL, &it.Problem.Platform, &it.Problem.Title, &it.Problem.Difficulty, &it.Problem.Topics,
+			&grade, &timeSpentSec, &solvedFlag, &recordedAt,
+		); err != nil {
 			return ContestWithItems{}, err
+		}
+		if grade != nil || timeSpentSec != nil || solvedFlag != nil || recordedAt != nil {
+			it.Result = &ContestResult{Grade: grade, TimeSpentSec: timeSpentSec, SolvedFlag: solvedFlag, RecordedAt: recordedAt}
 		}
 		out.Items = append(out.Items, it)
 	}
@@ -158,6 +179,18 @@ func (r *Repository) UpsertResultTx(ctx context.Context, tx pgx.Tx, in ResultInp
 }
 
 func (r *Repository) InsertReviewLogTx(ctx context.Context, tx pgx.Tx, userID string, contestID string, problemID string, reviewedAtUTC time.Time, grade int, timeSpentSec *int) error {
+	// Avoid duplicating contest-driven review logs if results are resubmitted.
+	var one int
+	if err := tx.QueryRow(ctx, `
+		SELECT 1
+		FROM review_logs
+		WHERE user_id = $1 AND contest_id = $2 AND problem_id = $3
+		LIMIT 1
+	`, userID, contestID, problemID).Scan(&one); err == nil {
+		return nil
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return err
+	}
 	_, err := tx.Exec(ctx, `
 		INSERT INTO review_logs (user_id, problem_id, reviewed_at, grade, time_spent_sec, source, contest_id)
 		VALUES ($1, $2, $3, $4, $5, 'contest', $6)
@@ -166,4 +199,3 @@ func (r *Repository) InsertReviewLogTx(ctx context.Context, tx pgx.Tx, userID st
 }
 
 func (r *Repository) IsNotFound(err error) bool { return errors.Is(err, db.ErrNotFound) }
-

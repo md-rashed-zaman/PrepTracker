@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { List, ListWithItems, ProblemWithState } from "@/lib/types";
+import { difficultyChip } from "@/lib/presentation";
 
 function toneForSource(sourceType: string) {
   if (sourceType === "template") return "border-[rgba(161,98,7,.28)] bg-[rgba(161,98,7,.08)]";
@@ -394,7 +395,7 @@ export default function ListsPage() {
             </Button>
           </div>
 
-          <div className="mt-4 space-y-2 lg:max-h-[calc(100vh-420px)] lg:overflow-auto lg:pr-1">
+          <div className="mt-4 space-y-2">
             {view === "lists" ? (
               filteredLists.length === 0 ? (
               <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-6 text-sm text-[color:var(--muted)]">
@@ -454,7 +455,7 @@ export default function ListsPage() {
                           {t.count} problems{t.overdue ? ` • ${t.overdue} overdue` : ""}
                         </div>
                       </div>
-                      <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">{t.count}</Badge>
+                      <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{t.count}</Badge>
                     </div>
                   </button>
                 );
@@ -502,20 +503,27 @@ export default function ListsPage() {
                         No matching problems.
                       </div>
                     ) : (
-                      libraryFiltered.map((p) => (
-                        <button
-                          key={p.id}
-                          type="button"
-                          onClick={() => addProblemToList(p.id)}
-                          className="w-full rounded-[18px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] px-4 py-3 text-left hover:border-[rgba(15,118,110,.35)] hover:bg-[color:var(--pf-surface-hover)]"
-                        >
-                          <div className="pf-display text-sm font-semibold leading-tight">{p.title || p.url}</div>
-                          <div className="mt-1 text-xs text-[color:var(--muted)]">
-                            {p.platform ? <span>{p.platform}</span> : null}
-                            {p.difficulty ? <span> • {p.difficulty}</span> : null}
-                          </div>
-                        </button>
-                      ))
+                      libraryFiltered.map((p) => {
+                        const diff = difficultyChip(p.difficulty || "");
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => addProblemToList(p.id)}
+                            className="w-full rounded-[18px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] px-4 py-3 text-left hover:border-[rgba(15,118,110,.35)] hover:bg-[color:var(--pf-surface-hover)]"
+                          >
+                            <div className="pf-display text-sm font-semibold leading-tight">{p.title || p.url}</div>
+                            <div className="mt-1 text-xs text-[color:var(--muted)]">
+                              {p.platform ? <span>{p.platform}</span> : null}
+                              {diff ? (
+                                <span className="ml-2 inline-flex">
+                                  <Badge className={diff.tone}>{diff.label}</Badge>
+                                </span>
+                              ) : null}
+                            </div>
+                          </button>
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -524,7 +532,7 @@ export default function ListsPage() {
           ) : null}
         </CardHeader>
         <CardContent>
-          <div className="lg:max-h-[calc(100vh-240px)] lg:overflow-auto lg:pr-1">
+          <div>
             {view === "topics" ? (
               selectedTopic ? (
                 topicProblems.length === 0 ? (
@@ -535,6 +543,7 @@ export default function ListsPage() {
                   <div className="space-y-2">
                     {topicProblems.map(({ p, mastery }) => {
                       const chip = dueChip(p.state?.due_at);
+                      const diff = difficultyChip(p.difficulty || "");
                       return (
                         <div
                           key={p.id}
@@ -554,21 +563,19 @@ export default function ListsPage() {
                               </div>
                               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
                                 {p.platform ? <span>{p.platform}</span> : null}
-                                {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                                {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
                                 {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
                               </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2 text-xs">
-                              <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
                                 mastery {Math.round(mastery)}
                               </Badge>
-                              <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
-                              reps {p.state?.reps ?? 0}
-                            </Badge>
-                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
-                              ease {(p.state?.ease ?? 2.5).toFixed(2)}
-                            </Badge>
-                          </div>
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">reps {p.state?.reps ?? 0}</Badge>
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                                ease {(p.state?.ease ?? 2.5).toFixed(2)}
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       );

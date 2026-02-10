@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { ProblemWithState } from "@/lib/types";
+import { GradeLegend, GradePicker } from "@/components/grade-picker";
+import { difficultyChip } from "@/lib/presentation";
 
 function pad2(n: number) {
   return String(n).padStart(2, "0");
@@ -36,6 +38,7 @@ export default function TodayPage() {
   const [error, setError] = React.useState<string | null>(null);
   const [minutesByID, setMinutesByID] = React.useState<Record<string, string>>({});
   const [reviewedAtByID, setReviewedAtByID] = React.useState<Record<string, string>>({});
+  const [gradeByID, setGradeByID] = React.useState<Record<string, number>>({});
 
   async function load() {
     setError(null);
@@ -68,9 +71,25 @@ export default function TodayPage() {
     });
   }, [items]);
 
-  async function postReview(problemID: string, grade: number) {
+  React.useEffect(() => {
+    // Seed a default grade selection.
+    setGradeByID((prev) => {
+      const next = { ...prev };
+      for (const p of items) {
+        if (typeof next[p.id] !== "number") next[p.id] = 3;
+      }
+      return next;
+    });
+  }, [items]);
+
+  async function postReview(problemID: string) {
     setBusy(problemID);
     try {
+      const grade = gradeByID[problemID];
+      if (typeof grade !== "number" || grade < 0 || grade > 4) {
+        setError("Pick a grade (0-4) first.");
+        return;
+      }
       const rawMin = (minutesByID[problemID] || "").trim();
       const min = rawMin ? Number(rawMin) : 0;
       const timeSpentSec = Number.isFinite(min) && min > 0 ? Math.round(min * 60) : undefined;
@@ -120,6 +139,9 @@ export default function TodayPage() {
         </Button>
       </CardHeader>
       <CardContent>
+        <div className="mb-3">
+          <GradeLegend />
+        </div>
         {error ? (
           <div className="rounded-2xl border border-[rgba(180,35,24,.28)] bg-[rgba(180,35,24,.08)] px-4 py-3 text-sm">
             {error}
@@ -134,6 +156,7 @@ export default function TodayPage() {
             {items.map((p) => {
               const dueAt = p.state?.due_at;
               const chip = dueAt ? dueLabel(dueAt) : null;
+              const diff = difficultyChip(p.difficulty || "");
               return (
                 <div
                   key={p.id}
@@ -153,7 +176,7 @@ export default function TodayPage() {
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
                         {p.platform ? <span>{p.platform}</span> : null}
-                        {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                        {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
                         {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
                       </div>
                     </div>
@@ -201,18 +224,27 @@ export default function TodayPage() {
                           Now
                         </Button>
                       </div>
-                      {[0, 1, 2, 3, 4].map((g) => (
-                        <Button
-                          key={g}
-                          size="sm"
-                          variant={g >= 3 ? "primary" : g === 2 ? "outline" : "secondary"}
-                          onClick={() => postReview(p.id, g)}
+                      <div className="flex items-center gap-2">
+                        <GradePicker
+                          value={gradeByID[p.id] ?? 3}
+                          onChange={(g) =>
+                            setGradeByID((m) => ({
+                              ...m,
+                              [p.id]: g,
+                            }))
+                          }
                           disabled={busy === p.id}
-                          title={`Grade ${g}`}
+                        />
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() => postReview(p.id)}
+                          disabled={busy === p.id}
+                          title="Confirm and log this review"
                         >
-                          {g}
+                          Confirm
                         </Button>
-                      ))}
+                      </div>
                     </div>
                   </div>
                 </div>

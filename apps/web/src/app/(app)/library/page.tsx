@@ -9,18 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { ProblemWithState } from "@/lib/types";
+import { GradeLegend, GradePicker } from "@/components/grade-picker";
+import { difficultyChip, normalizeDifficulty } from "@/lib/presentation";
 
 function normalizeTopics(raw: string) {
   return raw
     .split(",")
     .map((t) => t.trim())
     .filter(Boolean);
-}
-
-function normalizeDifficulty(s: string) {
-  const v = (s || "").trim().toLowerCase();
-  if (v === "easy" || v === "medium" || v === "hard") return v;
-  return "unknown";
 }
 
 function includesQuery(p: ProblemWithState, q: string) {
@@ -396,20 +392,9 @@ export default function LibraryPage() {
                   </div>
                   {logInitial ? (
                     <div className="mt-4 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {[0, 1, 2, 3, 4].map((g) => (
-                          <Button
-                            key={g}
-                            type="button"
-                            size="sm"
-                            variant={g >= 3 ? "primary" : g === 2 ? "outline" : "secondary"}
-                            onClick={() => setInitialGrade(g)}
-                            className={initialGrade === g ? "ring-4 ring-[rgba(15,118,110,.18)]" : ""}
-                            title={`Grade ${g}`}
-                          >
-                            {g}
-                          </Button>
-                        ))}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <GradeLegend />
+                        <GradePicker value={initialGrade} onChange={setInitialGrade} />
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2">
@@ -575,16 +560,16 @@ export default function LibraryPage() {
         ) : (
           <div className="space-y-4">
             <div className="hidden md:block overflow-hidden rounded-[24px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] shadow-[0_12px_28px_rgba(16,24,40,.06)]">
-              <div className="grid grid-cols-[minmax(260px,1fr)_140px_120px_120px_160px] gap-3 border-b border-[color:var(--line)] bg-[color:var(--pf-surface-strong)] px-4 py-3 text-xs font-medium text-[color:var(--muted)]">
+              <div className="grid grid-cols-[minmax(0,1fr)_140px_120px_200px] gap-3 border-b border-[color:var(--line)] bg-[color:var(--pf-surface-strong)] px-4 py-3 text-xs font-medium text-[color:var(--muted)]">
                 <div>Problem</div>
                 <div>Due</div>
                 <div>Mastery</div>
-                <div>Reps</div>
                 <div className="text-right">Actions</div>
               </div>
-              <div className="md:max-h-[calc(100vh-460px)] md:overflow-auto">
+              <div>
                 {filtered.map((p) => {
                   const active = p.state?.is_active ?? true;
+                  const diff = difficultyChip(p.difficulty || "");
                   const chip = dueChip(p.state?.due_at);
                   const d = p.state?.due_at ? daysFromNowISO(p.state.due_at) : 0;
                   const overdueDays = d < 0 ? Math.abs(d) : 0;
@@ -592,7 +577,7 @@ export default function LibraryPage() {
                   return (
                     <div
                       key={p.id}
-                      className="grid grid-cols-[minmax(260px,1fr)_140px_120px_120px_160px] gap-3 border-b border-[color:var(--line)] px-4 py-3 hover:bg-[color:var(--pf-surface-hover)]"
+                      className="grid grid-cols-[minmax(0,1fr)_140px_120px_200px] gap-3 border-b border-[color:var(--line)] px-4 py-3 hover:bg-[color:var(--pf-surface-hover)]"
                     >
                       <div className="min-w-0">
                         <div className="pf-display text-sm font-semibold leading-tight">
@@ -602,16 +587,24 @@ export default function LibraryPage() {
                             rel="noreferrer"
                             className="underline decoration-[rgba(15,118,110,.22)] underline-offset-4 hover:decoration-[rgba(15,118,110,.5)]"
                           >
-                            {p.title || p.url}
+                            <span className="block truncate">{p.title || p.url}</span>
                           </a>
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
                           {p.platform ? <span>{p.platform}</span> : null}
-                          {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                          {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
+                          <span>• reps {p.state?.reps ?? 0}</span>
                           {active ? (
-                            <Badge className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]">Active</Badge>
+                            <Badge
+                              className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]"
+                              title="Tracking enabled (shows up in Today and Contests)"
+                            >
+                              Tracking
+                            </Badge>
                           ) : (
-                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.06)]">Archived</Badge>
+                            <Badge className="border-[color:var(--line)] bg-[color:var(--pf-surface-weak)]" title="Tracking disabled (archived)">
+                              Archived
+                            </Badge>
                           )}
                         </div>
                         {p.topics?.length ? (
@@ -626,15 +619,15 @@ export default function LibraryPage() {
                       </div>
 
                       <div className="flex items-start pt-1">
-                        {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : <span className="text-xs text-[color:var(--muted)]">—</span>}
+                        {chip ? (
+                          <Badge className={chip.tone}>{chip.label}</Badge>
+                        ) : (
+                          <span className="text-xs text-[color:var(--muted)]">—</span>
+                        )}
                       </div>
 
                       <div className="flex items-start pt-1">
-                        <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">{Math.round(mastery)}</Badge>
-                      </div>
-
-                      <div className="flex items-start pt-1 text-xs text-[color:var(--muted)]">
-                        {p.state?.reps ?? 0}
+                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{Math.round(mastery)}</Badge>
                       </div>
 
                       <div className="flex items-start justify-end gap-2 pt-1">
@@ -659,6 +652,7 @@ export default function LibraryPage() {
             <div className="space-y-3 md:hidden">
               {filtered.map((p) => {
                 const active = p.state?.is_active ?? true;
+                const diff = difficultyChip(p.difficulty || "");
                 const chip = dueChip(p.state?.due_at);
                 return (
                   <div
@@ -679,12 +673,19 @@ export default function LibraryPage() {
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
                           {p.platform ? <span>{p.platform}</span> : null}
-                          {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                          {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
                           {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
                           {active ? (
-                            <Badge className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]">Active</Badge>
+                            <Badge
+                              className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]"
+                              title="Tracking enabled (shows up in Today and Contests)"
+                            >
+                              Tracking
+                            </Badge>
                           ) : (
-                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.06)]">Archived</Badge>
+                            <Badge className="border-[color:var(--line)] bg-[color:var(--pf-surface-weak)]" title="Tracking disabled (archived)">
+                              Archived
+                            </Badge>
                           )}
                         </div>
                         {p.topics?.length ? (

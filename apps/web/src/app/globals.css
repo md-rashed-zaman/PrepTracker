@@ -23,6 +23,8 @@
   --pf-chip-bg: rgba(255, 255, 255, 0.65);
   --pf-input-bg: rgba(255, 255, 255, 0.78);
   --pf-input-shadow: 0 1px 0 rgba(16, 24, 40, 0.04);
+  --pf-ring: rgba(15, 118, 110, 0.18);
+  --pf-ring-focus: rgba(15, 118, 110, 0.16);
 }
 
 :root[data-theme="dark"] {
@@ -46,6 +48,8 @@
   --pf-chip-bg: rgba(16, 24, 40, 0.62);
   --pf-input-bg: rgba(16, 24, 40, 0.76);
   --pf-input-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  --pf-ring: rgba(45, 212, 191, 0.22);
+  --pf-ring-focus: rgba(45, 212, 191, 0.18);
 }
 
 @theme inline {
@@ -63,31 +67,33 @@ body {
 body {
   font-family: var(--pf-font-sans);
   color: var(--foreground);
-  background:
-    radial-gradient(1200px 600px at 14% -5%, rgba(15, 118, 110, 0.1), transparent 60%),
-    radial-gradient(900px 520px at 100% 0%, rgba(161, 98, 7, 0.08), transparent 55%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(16, 24, 40, 0.03),
-      rgba(16, 24, 40, 0.03) 1px,
-      transparent 1px,
-      transparent 10px
-    ),
-    var(--background);
+  background: var(--background);
+  position: relative;
+  isolation: isolate;
 }
 
 :root[data-theme="dark"] body {
+  background: var(--background);
+}
+
+/* Fixed atmosphere layer: avoids "blocky" re-rasterization while scrolling. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
   background:
-    radial-gradient(1100px 560px at 18% -10%, rgba(45, 212, 191, 0.12), transparent 62%),
-    radial-gradient(760px 520px at 100% 0%, rgba(251, 191, 36, 0.09), transparent 60%),
-    repeating-linear-gradient(
-      0deg,
-      rgba(248, 250, 252, 0.03),
-      rgba(248, 250, 252, 0.03) 1px,
-      transparent 1px,
-      transparent 12px
-    ),
-    var(--background);
+    radial-gradient(1200px 600px at 14% -5%, rgba(15, 118, 110, 0.09), transparent 62%),
+    radial-gradient(900px 520px at 100% 0%, rgba(161, 98, 7, 0.07), transparent 60%),
+    linear-gradient(180deg, rgba(16, 24, 40, 0.035), transparent 38%, rgba(16, 24, 40, 0.02));
+}
+
+:root[data-theme="dark"] body::before {
+  background:
+    radial-gradient(1100px 560px at 18% -10%, rgba(45, 212, 191, 0.12), transparent 64%),
+    radial-gradient(760px 520px at 100% 0%, rgba(251, 191, 36, 0.09), transparent 64%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.03), transparent 38%, rgba(248, 250, 252, 0.015));
 }
 
 * {

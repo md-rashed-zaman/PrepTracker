@@ -76,6 +76,12 @@ export type ContestItem = {
   order_index: number;
   target_minutes: number;
   problem: Problem;
+  result?: {
+    grade?: number | null;
+    time_spent_sec?: number | null;
+    solved_flag?: boolean | null;
+    recorded_at?: string | null;
+  } | null;
 };
 
 export type ContestWithItems = Contest & {
@@ -95,4 +101,40 @@ export type TopicStat = {
   topic: string;
   count: number;
   mastery_avg: number;
+};
+
+export type ContestStatsDay = {
+  date: string; // YYYY-MM-DD (user timezone)
+  contests_finished: number;
+  problems_recorded: number;
+  solved_count: number;
+  avg_grade?: number | null;
+  total_time_sec: number;
+};
+
+export type ContestStatsRecent = {
+  contest_id: string;
+  strategy: string;
+  duration_minutes: number;
+  created_at: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  total_items: number;
+  recorded_count: number;
+  solved_count: number;
+  avg_grade?: number | null;
+  total_time_sec: number;
+};
+
+export type ContestStatsResponse = {
+  window_days: number;
+  totals: {
+    contests_finished: number;
+    problems_recorded: number;
+    solved_count: number;
+    avg_grade?: number | null;
+    total_time_sec: number;
+  };
+  days: ContestStatsDay[];
+  recent: ContestStatsRecent[];
 };

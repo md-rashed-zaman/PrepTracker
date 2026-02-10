@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import type { ContestWithItems } from "@/lib/types";
+import { GradeLegend, GradePicker } from "@/components/grade-picker";
+import { difficultyChip } from "@/lib/presentation";
 
 type Strategy = "balanced" | "weakness" | "due-heavy";
 
@@ -18,6 +21,7 @@ function fmtMMSS(ms: number) {
 }
 
 export default function ContestsPage() {
+  const router = useRouter();
   const [durationMinutes, setDurationMinutes] = React.useState("60");
   const [strategy, setStrategy] = React.useState<Strategy>("balanced");
   const [easy, setEasy] = React.useState("2");
@@ -34,12 +38,45 @@ export default function ContestsPage() {
 
   const [gradeByID, setGradeByID] = React.useState<Record<string, number>>({});
   const [minutesByID, setMinutesByID] = React.useState<Record<string, string>>({});
+  const [solvedByID, setSolvedByID] = React.useState<Record<string, boolean>>({});
+  const [busyID, setBusyID] = React.useState<string>("");
+
+  function isRecorded(it: ContestWithItems["items"][number]) {
+    return Boolean(it.result && (it.result.grade != null || it.result.recorded_at != null));
+  }
 
   React.useEffect(() => {
     if (!startedAt) return;
     const t = setInterval(() => setNowTick(Date.now()), 750);
     return () => clearInterval(t);
   }, [startedAt]);
+
+  React.useEffect(() => {
+    // Seed defaults per contest item without clobbering user edits.
+    if (!contest) return;
+    setGradeByID((prev) => {
+      const next = { ...prev };
+      for (const it of contest.items) {
+        if (typeof next[it.problem.id] !== "number") next[it.problem.id] = 3;
+      }
+      return next;
+    });
+    setSolvedByID((prev) => {
+      const next = { ...prev };
+      for (const it of contest.items) {
+        if (typeof next[it.problem.id] !== "boolean") next[it.problem.id] = true;
+        if (it.result?.solved_flag != null) next[it.problem.id] = Boolean(it.result.solved_flag);
+      }
+      return next;
+    });
+    setMinutesByID((prev) => {
+      const next = { ...prev };
+      for (const it of contest.items) {
+        if (it.result?.time_spent_sec != null) next[it.problem.id] = String(Math.round(Number(it.result.time_spent_sec) / 60));
+      }
+      return next;
+    });
+  }, [contest?.id]);
 
   async function generate() {
     setBusy(true);
@@ -67,6 +104,7 @@ export default function ContestsPage() {
       setContest(c);
       setGradeByID({});
       setMinutesByID({});
+      setSolvedByID({});
       setStartedAt(null);
       setNotice("Contest generated. Start when ready.");
     } finally {
@@ -94,56 +132,100 @@ export default function ContestsPage() {
     }
   }
 
-  async function completeContest() {
+  async function finishContest() {
     if (!contest) return;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
+      const unrecorded = contest.items.filter((it) => !isRecorded(it)).length;
+      if (unrecorded > 0) {
+        const ok = window.confirm(`You still have ${unrecorded} unrecorded problems. Finish anyway?`);
+        if (!ok) return;
+      }
+
       const resp = await fetch(`/api/contests/${encodeURIComponent(contest.id)}/complete`, { method: "POST" });
       if (!resp.ok) {
-        setError("Failed to mark contest complete");
+        setError("Failed to finish contest");
         return;
       }
-      setNotice("Marked complete. Submit results to update scheduling.");
+
+      const latest = await fetch(`/api/contests/${encodeURIComponent(contest.id)}`, { cache: "no-store" });
+      const data = latest.ok ? ((await latest.json().catch(() => null)) as unknown) : null;
+      const c = data && typeof data === "object" ? (data as ContestWithItems) : null;
+      if (c) setContest(c);
+      setNotice("Contest finished. Recorded results are already applied to your schedule.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function submitResults() {
+  async function confirmOne(problemID: string) {
     if (!contest) return;
-    setBusy(true);
+    setBusyID(problemID);
     setError(null);
     setNotice(null);
     try {
-      const results = contest.items.map((it) => {
-        const grade = gradeByID[it.problem.id];
-        const rawMin = (minutesByID[it.problem.id] || "").trim();
-        const min = rawMin ? Number(rawMin) : 0;
-        const timeSpentSec = Number.isFinite(min) && min > 0 ? Math.round(min * 60) : undefined;
-        return {
-          problem_id: it.problem.id,
-          grade: typeof grade === "number" ? grade : 2,
-          ...(timeSpentSec ? { time_spent_sec: timeSpentSec } : {}),
-        };
-      });
+      const grade = gradeByID[problemID];
+      if (typeof grade !== "number" || grade < 0 || grade > 4) {
+        setError("Pick a grade (0-4) first.");
+        return;
+      }
+      const rawMin = (minutesByID[problemID] || "").trim();
+      const min = rawMin ? Number(rawMin) : 0;
+      const timeSpentSec = Number.isFinite(min) && min > 0 ? Math.round(min * 60) : undefined;
+      const solved = solvedByID[problemID];
+
       const resp = await fetch(`/api/contests/${encodeURIComponent(contest.id)}/results`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ results }),
+        body: JSON.stringify({
+          results: [
+            {
+              problem_id: problemID,
+              grade,
+              solved_flag: typeof solved === "boolean" ? solved : true,
+              ...(timeSpentSec ? { time_spent_sec: timeSpentSec } : {}),
+            },
+          ],
+        }),
       });
       if (!resp.ok) {
-        setError("Failed to submit results");
+        setError("Failed to confirm this result");
         return;
       }
-      setNotice("Results saved. Your schedule has been updated.");
+      const updated = (await resp.json().catch(() => null)) as unknown;
+      const c = updated && typeof updated === "object" ? (updated as ContestWithItems) : null;
+      if (c) setContest(c);
+      setNotice("Recorded. Schedule updated.");
     } finally {
-      setBusy(false);
+      setBusyID("");
     }
   }
 
   const elapsed = startedAt ? Date.now() - startedAt : 0;
+  const recordedCount = contest ? contest.items.filter((it) => isRecorded(it)).length : 0;
+  const finished = Boolean(contest?.completed_at);
+
+  const summary = React.useMemo(() => {
+    if (!contest) return null;
+    const recorded = contest.items.filter((it) => isRecorded(it));
+    const grades = recorded.map((it) => Number(it.result?.grade)).filter((x) => Number.isFinite(x));
+    const timeSec = recorded
+      .map((it) => Number(it.result?.time_spent_sec))
+      .filter((x) => Number.isFinite(x) && x > 0)
+      .reduce((a, b) => a + b, 0);
+    const solved = recorded.filter((it) => it.result?.solved_flag === true).length;
+    const avgGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : 0;
+    const totalMin = Math.round(timeSec / 60);
+    return {
+      recorded: recorded.length,
+      total: contest.items.length,
+      solved,
+      avgGrade,
+      totalMin,
+    };
+  }, [contest?.id, contest?.items]);
 
   return (
     <div className="space-y-5">
@@ -232,21 +314,66 @@ export default function ContestsPage() {
             </CardDescription>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
+            <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
               Timer: {startedAt ? fmtMMSS(elapsed) : "00:00"}
             </Badge>
-            <Button variant="outline" onClick={startContest} disabled={busy || !contest || Boolean(startedAt)}>
+            {contest ? (
+              <Badge className="border-[rgba(15,118,110,.22)] bg-[rgba(15,118,110,.08)]">
+                Recorded {recordedCount}/{contest.items.length}
+              </Badge>
+            ) : null}
+            <Button variant="outline" onClick={startContest} disabled={busy || !contest || Boolean(startedAt) || finished}>
               Start
             </Button>
-            <Button variant="outline" onClick={completeContest} disabled={busy || !contest}>
-              Complete
-            </Button>
-            <Button onClick={submitResults} disabled={busy || !contest}>
-              Submit results
+            <Button onClick={finishContest} disabled={busy || !contest}>
+              Finish contest
             </Button>
           </div>
         </CardHeader>
         <CardContent>
+          {finished && summary ? (
+            <div className="mb-3 rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-[240px]">
+                  <div className="pf-display text-base font-semibold leading-tight">Contest summary</div>
+                  <div className="mt-1 text-xs text-[color:var(--muted)]">
+                    Recording each problem updates scheduling immediately.
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" onClick={() => router.push("/today")}>
+                    Go to Today
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setContest(null);
+                      setNotice(null);
+                      setError(null);
+                      setStartedAt(null);
+                    }}
+                  >
+                    New contest
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                  Recorded {summary.recorded}/{summary.total}
+                </Badge>
+                <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">Solved {summary.solved}</Badge>
+                <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                  Avg grade {summary.avgGrade ? summary.avgGrade.toFixed(1) : "—"}
+                </Badge>
+                <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                  Time {summary.totalMin ? `${summary.totalMin}m` : "—"}
+                </Badge>
+              </div>
+            </div>
+          ) : null}
+          <div className="mb-3">
+            <GradeLegend />
+          </div>
           {!contest ? (
             <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
               Generate a contest to see problems here.
@@ -255,6 +382,8 @@ export default function ContestsPage() {
             <div className="space-y-2">
               {contest.items.map((it, idx) => {
                 const g = gradeByID[it.problem.id];
+                const recorded = isRecorded(it);
+                const diff = difficultyChip(it.problem.difficulty || "");
                 return (
                   <div
                     key={it.problem.id}
@@ -275,8 +404,13 @@ export default function ContestsPage() {
                         </div>
                         <div className="mt-1 text-xs text-[color:var(--muted)]">
                           {it.problem.platform ? <span>{it.problem.platform}</span> : null}
-                          {it.problem.difficulty ? <span> • {it.problem.difficulty}</span> : null}
+                          {diff ? (
+                            <span className="ml-2 inline-flex">
+                              <Badge className={diff.tone}>{diff.label}</Badge>
+                            </span>
+                          ) : null}
                           {it.target_minutes ? <span> • target {it.target_minutes}m</span> : null}
+                          {recorded ? <span> • recorded</span> : null}
                         </div>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -293,19 +427,52 @@ export default function ContestsPage() {
                           }
                           title="Optional time spent (minutes)"
                         />
-                        {[0, 1, 2, 3, 4].map((x) => (
+                        <label
+                          className="flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-3 py-2 text-xs text-[color:var(--muted)]"
+                          title="Checked means you solved without reading the solution. Uncheck if you couldn't solve."
+                        >
+                          <input
+                            type="checkbox"
+                            checked={solvedByID[it.problem.id] ?? true}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setSolvedByID((m) => ({
+                                ...m,
+                                [it.problem.id]: checked,
+                              }));
+                              if (!checked) {
+                                setGradeByID((m) => ({
+                                  ...m,
+                                  [it.problem.id]: Math.min(m[it.problem.id] ?? 3, 1),
+                                }));
+                              }
+                            }}
+                            disabled={busy || recorded}
+                          />
+                          Solved (no solution)
+                        </label>
+                        <GradePicker
+                          value={g ?? 3}
+                          onChange={(x) => {
+                            const solved = solvedByID[it.problem.id] ?? true;
+                            const next = solved ? x : Math.min(x, 1);
+                            setGradeByID((m) => ({ ...m, [it.problem.id]: next }));
+                          }}
+                          disabled={busy || recorded}
+                        />
+                        {recorded ? (
+                          <Badge className="border-[rgba(45,212,191,.28)] bg-[rgba(45,212,191,.12)]">Recorded</Badge>
+                        ) : (
                           <Button
-                            key={x}
                             size="sm"
-                            variant={x >= 3 ? "primary" : x === 2 ? "outline" : "secondary"}
-                            onClick={() => setGradeByID((m) => ({ ...m, [it.problem.id]: x }))}
-                            disabled={busy}
-                            title={`Grade ${x}`}
-                            className={g === x ? "ring-4 ring-[rgba(15,118,110,.18)]" : ""}
+                            variant="primary"
+                            disabled={busy || busyID === it.problem.id}
+                            onClick={() => confirmOne(it.problem.id)}
+                            title="Confirm this problem's result (updates schedule)"
                           >
-                            {x}
+                            {busyID === it.problem.id ? "Saving..." : "Confirm"}
                           </Button>
-                        ))}
+                        )}
                       </div>
                     </div>
                   </div>
