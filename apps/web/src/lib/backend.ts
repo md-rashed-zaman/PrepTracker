@@ -116,6 +116,14 @@ export async function proxyJSON(opts: ProxyJSONOpts): Promise<NextResponse> {
     }
   }
 
+  // For statuses that must not include a body, return a body-less response.
+  // Otherwise Next/undici can throw "Invalid response status code 204".
+  if (resp.status === 204 || resp.status === 205 || resp.status === 304) {
+    const out = new NextResponse(null, { status: resp.status });
+    if (refreshed) setAuthCookies(out, refreshed);
+    return out;
+  }
+
   const contentType = resp.headers.get("content-type") || "";
   const isJSON = contentType.includes("application/json");
   const payloadText = await resp.text();
