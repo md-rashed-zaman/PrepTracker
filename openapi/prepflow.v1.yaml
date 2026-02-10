@@ -188,7 +188,7 @@ paths:
   /api/v1/problems/{id}:
     patch:
       tags: [Problems]
-      summary: Update user state for a problem (activate/deactivate)
+      summary: Update a problem (metadata and/or active state)
       security:
         - bearerAuth: []
       parameters:
@@ -204,6 +204,12 @@ paths:
             schema:
               $ref: "#/components/schemas/PatchProblemRequest"
       responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
         "204":
           description: No content
         "401":
@@ -793,6 +799,17 @@ components:
       properties:
         is_active:
           type: boolean
+        platform:
+          type: string
+        title:
+          type: string
+        difficulty:
+          type: string
+          description: easy|medium|hard|unknown
+        topics:
+          type: array
+          items:
+            type: string
     PostReviewRequest:
       type: object
       required: [problem_id, grade]

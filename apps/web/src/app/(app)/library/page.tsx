@@ -38,6 +38,30 @@ function includesQuery(p: ProblemWithState, q: string) {
   return hay.includes(q.toLowerCase());
 }
 
+function clamp(v: number, lo: number, hi: number) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function masteryScore(reps: number, ease: number, overdueDays: number) {
+  const overduePenalty = Math.min(30, overdueDays * 2);
+  const m = 20 * Math.log2(reps + 1) + 25 * (ease - 1.3) - overduePenalty;
+  return clamp(m, 0, 100);
+}
+
+function daysFromNowISO(iso: string) {
+  const due = new Date(iso).getTime();
+  const now = Date.now();
+  return Math.floor((due - now) / (1000 * 60 * 60 * 24));
+}
+
+function dueChip(iso?: string) {
+  if (!iso) return null;
+  const d = daysFromNowISO(iso);
+  if (d < 0) return { label: "Overdue", tone: "border-[rgba(251,113,133,.28)] bg-[rgba(251,113,133,.10)]" };
+  if (d === 0) return { label: "Due today", tone: "border-[rgba(251,191,36,.28)] bg-[rgba(251,191,36,.10)]" };
+  return { label: `Due in ${d}d`, tone: "border-[rgba(45,212,191,.28)] bg-[rgba(45,212,191,.10)]" };
+}
+
 export default function LibraryPage() {
   const [items, setItems] = React.useState<ProblemWithState[]>([]);
   const [error, setError] = React.useState<string | null>(null);
@@ -67,6 +91,14 @@ export default function LibraryPage() {
   const [platformFilter, setPlatformFilter] = React.useState<string>("all");
   const [topicFilter, setTopicFilter] = React.useState<string>("all");
   const [showArchived, setShowArchived] = React.useState(false);
+
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editID, setEditID] = React.useState<string>("");
+  const [editURL, setEditURL] = React.useState<string>("");
+  const [editTitle, setEditTitle] = React.useState<string>("");
+  const [editPlatform, setEditPlatform] = React.useState<string>("");
+  const [editDifficulty, setEditDifficulty] = React.useState<string>("");
+  const [editTopics, setEditTopics] = React.useState<string>("");
 
   async function load() {
     setError(null);
@@ -200,6 +232,45 @@ export default function LibraryPage() {
     }
   }
 
+  function openEdit(p: ProblemWithState) {
+    setError(null);
+    setEditID(p.id);
+    setEditURL(p.url || "");
+    setEditTitle(p.title || "");
+    setEditPlatform(p.platform || "");
+    setEditDifficulty(p.difficulty || "");
+    setEditTopics((p.topics || []).join(", "));
+    setEditOpen(true);
+  }
+
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editID) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const resp = await fetch(`/api/problems/${encodeURIComponent(editID)}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle,
+          platform: editPlatform,
+          difficulty: editDifficulty,
+          topics: normalizeTopics(editTopics),
+        }),
+      });
+      if (!resp.ok) {
+        const msg = (await resp.json().catch(() => null))?.error || "Failed to update problem";
+        setError(String(msg));
+        return;
+      }
+      setEditOpen(false);
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -212,6 +283,63 @@ export default function LibraryPage() {
           <Button variant="outline" onClick={load}>
             Refresh
           </Button>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit problem</DialogTitle>
+                <DialogDescription>Updates canonical metadata for this problem.</DialogDescription>
+              </DialogHeader>
+              <form className="space-y-4" onSubmit={saveEdit}>
+                <div className="space-y-2">
+                  <Label>URL</Label>
+                  <Input value={editURL} readOnly />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-title">Title</Label>
+                    <Input id="edit-title" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-platform">Platform</Label>
+                    <Input
+                      id="edit-platform"
+                      value={editPlatform}
+                      onChange={(e) => setEditPlatform(e.target.value)}
+                      placeholder="LeetCode"
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-difficulty">Difficulty</Label>
+                    <Input
+                      id="edit-difficulty"
+                      value={editDifficulty}
+                      onChange={(e) => setEditDifficulty(e.target.value)}
+                      placeholder="Easy/Medium/Hard"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-topics">Topics</Label>
+                    <Input
+                      id="edit-topics"
+                      value={editTopics}
+                      onChange={(e) => setEditTopics(e.target.value)}
+                      placeholder="arrays, dp, graphs"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2">
+                  <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={busy}>
+                    {busy ? "Saving..." : "Save changes"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>Add problem</Button>
@@ -445,59 +573,148 @@ export default function LibraryPage() {
             No matches. Try clearing filters.
           </div>
         ) : (
-          <div className="space-y-3">
-            {filtered.map((p) => {
-              const active = p.state?.is_active ?? true;
-              return (
-                <div
-                  key={p.id}
-                  className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-[260px]">
-                      <div className="pf-display text-lg font-semibold leading-tight">
-                        <a
-                          href={p.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline decoration-[rgba(15,118,110,.28)] underline-offset-4 hover:decoration-[rgba(15,118,110,.55)]"
-                        >
-                          {p.title || p.url}
-                        </a>
-                      </div>
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
-                        {p.platform ? <span>{p.platform}</span> : null}
-                        {p.difficulty ? <span>• {p.difficulty}</span> : null}
-                        {active ? (
-                          <Badge className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]">Active</Badge>
-                        ) : (
-                          <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.06)]">Archived</Badge>
-                        )}
-                      </div>
-                      {p.topics?.length ? (
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {p.topics.slice(0, 8).map((t) => (
-                            <Badge key={t} className="bg-[color:var(--pf-chip-bg)]">
-                              {t}
-                            </Badge>
-                          ))}
+          <div className="space-y-4">
+            <div className="hidden md:block overflow-hidden rounded-[24px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] shadow-[0_12px_28px_rgba(16,24,40,.06)]">
+              <div className="grid grid-cols-[minmax(260px,1fr)_140px_120px_120px_160px] gap-3 border-b border-[color:var(--line)] bg-[color:var(--pf-surface-strong)] px-4 py-3 text-xs font-medium text-[color:var(--muted)]">
+                <div>Problem</div>
+                <div>Due</div>
+                <div>Mastery</div>
+                <div>Reps</div>
+                <div className="text-right">Actions</div>
+              </div>
+              <div className="md:max-h-[calc(100vh-460px)] md:overflow-auto">
+                {filtered.map((p) => {
+                  const active = p.state?.is_active ?? true;
+                  const chip = dueChip(p.state?.due_at);
+                  const d = p.state?.due_at ? daysFromNowISO(p.state.due_at) : 0;
+                  const overdueDays = d < 0 ? Math.abs(d) : 0;
+                  const mastery = masteryScore(p.state?.reps || 0, p.state?.ease || 2.5, overdueDays);
+                  return (
+                    <div
+                      key={p.id}
+                      className="grid grid-cols-[minmax(260px,1fr)_140px_120px_120px_160px] gap-3 border-b border-[color:var(--line)] px-4 py-3 hover:bg-[color:var(--pf-surface-hover)]"
+                    >
+                      <div className="min-w-0">
+                        <div className="pf-display text-sm font-semibold leading-tight">
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline decoration-[rgba(15,118,110,.22)] underline-offset-4 hover:decoration-[rgba(15,118,110,.5)]"
+                          >
+                            {p.title || p.url}
+                          </a>
                         </div>
-                      ) : null}
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
+                          {p.platform ? <span>{p.platform}</span> : null}
+                          {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                          {active ? (
+                            <Badge className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]">Active</Badge>
+                          ) : (
+                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.06)]">Archived</Badge>
+                          )}
+                        </div>
+                        {p.topics?.length ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {p.topics.slice(0, 6).map((t) => (
+                              <Badge key={t} className="bg-[color:var(--pf-chip-bg)]">
+                                {t}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="flex items-start pt-1">
+                        {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : <span className="text-xs text-[color:var(--muted)]">—</span>}
+                      </div>
+
+                      <div className="flex items-start pt-1">
+                        <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">{Math.round(mastery)}</Badge>
+                      </div>
+
+                      <div className="flex items-start pt-1 text-xs text-[color:var(--muted)]">
+                        {p.state?.reps ?? 0}
+                      </div>
+
+                      <div className="flex items-start justify-end gap-2 pt-1">
+                        <Button size="sm" variant="secondary" disabled={busy} onClick={() => openEdit(p)}>
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={active ? "outline" : "primary"}
+                          disabled={busy}
+                          onClick={() => toggleActive(p.id, !active)}
+                        >
+                          {active ? "Archive" : "Activate"}
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant={active ? "outline" : "primary"}
-                        disabled={busy}
-                        onClick={() => toggleActive(p.id, !active)}
-                      >
-                        {active ? "Archive" : "Activate"}
-                      </Button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-3 md:hidden">
+              {filtered.map((p) => {
+                const active = p.state?.is_active ?? true;
+                const chip = dueChip(p.state?.due_at);
+                return (
+                  <div
+                    key={p.id}
+                    className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-[260px]">
+                        <div className="pf-display text-lg font-semibold leading-tight">
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline decoration-[rgba(15,118,110,.28)] underline-offset-4 hover:decoration-[rgba(15,118,110,.55)]"
+                          >
+                            {p.title || p.url}
+                          </a>
+                        </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
+                          {p.platform ? <span>{p.platform}</span> : null}
+                          {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                          {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
+                          {active ? (
+                            <Badge className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]">Active</Badge>
+                          ) : (
+                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.06)]">Archived</Badge>
+                          )}
+                        </div>
+                        {p.topics?.length ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {p.topics.slice(0, 8).map((t) => (
+                              <Badge key={t} className="bg-[color:var(--pf-chip-bg)]">
+                                {t}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="secondary" disabled={busy} onClick={() => openEdit(p)}>
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={active ? "outline" : "primary"}
+                          disabled={busy}
+                          onClick={() => toggleActive(p.id, !active)}
+                        >
+                          {active ? "Archive" : "Activate"}
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
       </CardContent>

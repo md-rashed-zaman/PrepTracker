@@ -36,8 +36,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="pf-container">
-      <div className="grid gap-5 lg:grid-cols-[260px_1fr]">
-        <aside className="pf-paper p-5">
+      <div className="grid items-start gap-5 lg:grid-cols-[260px_1fr]">
+        <aside className="pf-paper self-start p-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-48px)] lg:overflow-auto">
           <div className="mb-5">
             <div className="pf-kicker">PrepFlow</div>
             <div className="flex items-start justify-between gap-3">

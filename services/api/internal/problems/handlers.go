@@ -201,7 +201,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 }
 
 type patchRequest struct {
-	IsActive *bool `json:"is_active"`
+	IsActive    *bool     `json:"is_active"`
+	Platform    *string   `json:"platform"`
+	Title       *string   `json:"title"`
+	Difficulty  *string   `json:"difficulty"`
+	Topics      *[]string `json:"topics"`
 }
 
 func (h *Handler) Patch(w http.ResponseWriter, r *http.Request) {
@@ -224,11 +228,52 @@ func (h *Handler) Patch(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid json body")
 		return
 	}
+	metadataTouched := req.Platform != nil || req.Title != nil || req.Difficulty != nil || req.Topics != nil
 	if req.IsActive != nil {
 		if err := h.repo.SetActive(r.Context(), userID, problemID, *req.IsActive); err != nil {
 			httpx.WriteError(w, http.StatusNotFound, "not found")
 			return
 		}
+	}
+	if metadataTouched {
+		var patch MetadataPatch
+		if req.Platform != nil {
+			v := strings.TrimSpace(*req.Platform)
+			patch.Platform = &v
+		}
+		if req.Title != nil {
+			v := strings.TrimSpace(*req.Title)
+			patch.Title = &v
+		}
+		if req.Difficulty != nil {
+			v := strings.TrimSpace(strings.ToLower(*req.Difficulty))
+			if v == "" {
+				v = "unknown"
+			}
+			if v != "easy" && v != "medium" && v != "hard" && v != "unknown" {
+				httpx.WriteError(w, http.StatusBadRequest, "difficulty must be easy|medium|hard|unknown")
+				return
+			}
+			patch.Difficulty = &v
+		}
+		if req.Topics != nil {
+			next := make([]string, 0, len(*req.Topics))
+			for _, t := range *req.Topics {
+				tt := strings.TrimSpace(t)
+				if tt == "" {
+					continue
+				}
+				next = append(next, tt)
+			}
+			patch.Topics = &next
+		}
+		out, err := h.repo.PatchMetadataForUser(r.Context(), userID, problemID, patch)
+		if err != nil {
+			httpx.WriteError(w, http.StatusNotFound, "not found")
+			return
+		}
+		httpx.WriteJSON(w, http.StatusOK, out)
+		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

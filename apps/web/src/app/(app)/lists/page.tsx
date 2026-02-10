@@ -87,16 +87,18 @@ export default function ListsPage() {
     setNotice(null);
     if (!id) {
       setSelected(null);
-      return;
+      return null;
     }
     const resp = await fetch(`/api/lists/${encodeURIComponent(id)}`, { cache: "no-store" });
     if (!resp.ok) {
       setSelected(null);
       setError("Failed to load list details");
-      return;
+      return null;
     }
     const data = (await resp.json().catch(() => null)) as unknown;
-    setSelected(data && typeof data === "object" ? (data as ListWithItems) : null);
+    const out = data && typeof data === "object" ? (data as ListWithItems) : null;
+    setSelected(out);
+    return out;
   }
 
   React.useEffect(() => {
@@ -181,8 +183,8 @@ export default function ListsPage() {
       if (!resp.ok) {
         const msg = (await resp.json().catch(() => null))?.error || "Failed to add problem to list";
         // Some network failures can still commit on the backend. Verify by reloading.
-        await loadSelected(selectedID);
-        const exists = selected?.items?.some((x) => x.problem.id === problemID) ?? false;
+        const latest = await loadSelected(selectedID);
+        const exists = latest?.items?.some((x) => x.problem.id === problemID) ?? false;
         if (exists) {
           setNotice("Problem added, but the request response failed. The list is updated.");
         } else {
@@ -298,7 +300,7 @@ export default function ListsPage() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-      <Card className="h-fit">
+      <Card className="h-fit lg:sticky lg:top-6 self-start">
         <CardHeader>
           <div>
             <div className="pf-kicker">Lists</div>
@@ -392,7 +394,7 @@ export default function ListsPage() {
             </Button>
           </div>
 
-          <div className="mt-4 space-y-2">
+          <div className="mt-4 space-y-2 lg:max-h-[calc(100vh-420px)] lg:overflow-auto lg:pr-1">
             {view === "lists" ? (
               filteredLists.length === 0 ? (
               <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-6 text-sm text-[color:var(--muted)]">
@@ -522,158 +524,163 @@ export default function ListsPage() {
           ) : null}
         </CardHeader>
         <CardContent>
-          {view === "topics" ? (
-            selectedTopic ? (
-              topicProblems.length === 0 ? (
-                <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
-                  No problems in this topic.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {topicProblems.map(({ p, mastery }) => {
-                    const chip = dueChip(p.state?.due_at);
-                    return (
-                      <div
-                        key={p.id}
-                        className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] px-4 py-3 shadow-[0_10px_22px_rgba(16,24,40,.05)]"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                          <div className="min-w-[240px]">
-                            <div className="pf-display text-sm font-semibold leading-tight">
-                              <a
-                                href={p.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="underline decoration-[rgba(45,212,191,.22)] underline-offset-4 hover:decoration-[rgba(45,212,191,.5)]"
-                              >
-                                {p.title || p.url}
-                              </a>
+          <div className="lg:max-h-[calc(100vh-240px)] lg:overflow-auto lg:pr-1">
+            {view === "topics" ? (
+              selectedTopic ? (
+                topicProblems.length === 0 ? (
+                  <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                    No problems in this topic.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {topicProblems.map(({ p, mastery }) => {
+                      const chip = dueChip(p.state?.due_at);
+                      return (
+                        <div
+                          key={p.id}
+                          className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] px-4 py-3 shadow-[0_10px_22px_rgba(16,24,40,.05)]"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-[240px]">
+                              <div className="pf-display text-sm font-semibold leading-tight">
+                                <a
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="underline decoration-[rgba(45,212,191,.22)] underline-offset-4 hover:decoration-[rgba(45,212,191,.5)]"
+                                >
+                                  {p.title || p.url}
+                                </a>
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
+                                {p.platform ? <span>{p.platform}</span> : null}
+                                {p.difficulty ? <span>• {p.difficulty}</span> : null}
+                                {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
+                              </div>
                             </div>
-                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
-                              {p.platform ? <span>{p.platform}</span> : null}
-                              {p.difficulty ? <span>• {p.difficulty}</span> : null}
-                              {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
-                              mastery {Math.round(mastery)}
-                            </Badge>
-                            <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
+                                mastery {Math.round(mastery)}
+                              </Badge>
+                              <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
                               reps {p.state?.reps ?? 0}
                             </Badge>
                             <Badge className="border-[rgba(16,24,40,.18)] bg-[rgba(16,24,40,.04)]">
                               ease {(p.state?.ease ?? 2.5).toFixed(2)}
                             </Badge>
                           </div>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )
+              ) : (
+                <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                  Select a topic on the left.
                 </div>
               )
-            ) : (
+            ) : !selected ? (
               <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
-                Select a topic on the left.
+                Select or import a list to see items here.
               </div>
-            )
-          ) : !selected ? (
-            <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
-              Select or import a list to see items here.
-            </div>
-          ) : selected.items.length === 0 ? (
-            <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
-              Empty list. Add problems from Library.
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {(draftIDs.length ? draftIDs : selected.items.map((x) => x.problem.id)).map((pid, idx) => {
-                const it = selected.items.find((x) => x.problem.id === pid);
-                if (!it) return null;
-                return (
-                <div
-                  key={it.problem.id}
-                  draggable={!busy}
-                  onDragStart={(e) => {
-                    setDraggingID(it.problem.id);
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", it.problem.id);
-                  }}
-                  onDragEnd={() => setDraggingID(null)}
-                  onDragOver={(e) => {
-                    if (busy) return;
-                    e.preventDefault();
-                    if (!draggingID || draggingID === it.problem.id) return;
-                    setDraftIDs((prev) => moveID(prev.length ? prev : selected.items.map((x) => x.problem.id), draggingID, idx));
-                  }}
-                  onDrop={(e) => {
-                    if (busy) return;
-                    e.preventDefault();
-                    const ids = draftIDs.length ? draftIDs : selected.items.map((x) => x.problem.id);
-                    setDraggingID(null);
-                    void reorder(ids);
-                  }}
-                  className={[
-                    "flex flex-wrap items-center justify-between gap-3 rounded-[20px] border px-4 py-3 shadow-[0_10px_22px_rgba(16,24,40,.05)] transition",
-                    "border-[color:var(--line)] bg-[color:var(--pf-surface)] hover:bg-[color:var(--pf-surface-hover)]",
-                    draggingID === it.problem.id ? "opacity-80 ring-4 ring-[rgba(45,212,191,.14)]" : "",
-                  ].join(" ")}
-                >
-                  <div className="min-w-[240px]">
-                    <div className="pf-display text-sm font-semibold leading-tight">
-                      <span className="mr-2 inline-flex items-center align-middle text-[color:var(--muted)]" title="Drag to reorder">
-                        <GripVertical className="h-4 w-4" />
-                      </span>
-                      <a
-                        href={it.problem.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="underline decoration-[rgba(15,118,110,.28)] underline-offset-4 hover:decoration-[rgba(15,118,110,.55)]"
-                      >
-                        {it.problem.title || it.problem.url}
-                      </a>
-                    </div>
-                    <div className="mt-1 text-xs text-[color:var(--muted)]">
-                      {it.problem.platform ? <span>{it.problem.platform}</span> : null}
-                      {it.problem.difficulty ? <span> • {it.problem.difficulty}</span> : null}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* Mobile fallback controls (drag is poor on touch). */}
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy || idx === 0}
-                      onClick={() => {
-                        const ids = selected.items.map((x) => x.problem.id);
-                        const next = [...ids];
-                        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-                        setDraftIDs(next);
-                        void reorder(next);
+            ) : selected.items.length === 0 ? (
+              <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                Empty list. Add problems from Library.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {(draftIDs.length ? draftIDs : selected.items.map((x) => x.problem.id)).map((pid, idx) => {
+                  const it = selected.items.find((x) => x.problem.id === pid);
+                  if (!it) return null;
+                  return (
+                    <div
+                      key={it.problem.id}
+                      draggable={!busy}
+                      onDragStart={(e) => {
+                        setDraggingID(it.problem.id);
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", it.problem.id);
                       }}
-                    >
-                      Up
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      disabled={busy || idx === selected.items.length - 1}
-                      onClick={() => {
-                        const ids = selected.items.map((x) => x.problem.id);
-                        const next = [...ids];
-                        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
-                        setDraftIDs(next);
-                        void reorder(next);
+                      onDragEnd={() => setDraggingID(null)}
+                      onDragOver={(e) => {
+                        if (busy) return;
+                        e.preventDefault();
+                        if (!draggingID || draggingID === it.problem.id) return;
+                        setDraftIDs((prev) => moveID(prev.length ? prev : selected.items.map((x) => x.problem.id), draggingID, idx));
                       }}
+                      onDrop={(e) => {
+                        if (busy) return;
+                        e.preventDefault();
+                        const ids = draftIDs.length ? draftIDs : selected.items.map((x) => x.problem.id);
+                        setDraggingID(null);
+                        void reorder(ids);
+                      }}
+                      className={[
+                        "flex flex-wrap items-center justify-between gap-3 rounded-[20px] border px-4 py-3 shadow-[0_10px_22px_rgba(16,24,40,.05)] transition",
+                        "border-[color:var(--line)] bg-[color:var(--pf-surface)] hover:bg-[color:var(--pf-surface-hover)]",
+                        draggingID === it.problem.id ? "opacity-80 ring-4 ring-[rgba(45,212,191,.14)]" : "",
+                      ].join(" ")}
                     >
-                      Down
-                    </Button>
-                  </div>
-                </div>
-              );
-              })}
-            </div>
-          )}
+                      <div className="min-w-[240px]">
+                        <div className="pf-display text-sm font-semibold leading-tight">
+                          <span
+                            className="mr-2 inline-flex items-center align-middle text-[color:var(--muted)]"
+                            title="Drag to reorder"
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </span>
+                          <a
+                            href={it.problem.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline decoration-[rgba(15,118,110,.28)] underline-offset-4 hover:decoration-[rgba(15,118,110,.55)]"
+                          >
+                            {it.problem.title || it.problem.url}
+                          </a>
+                        </div>
+                        <div className="mt-1 text-xs text-[color:var(--muted)]">
+                          {it.problem.platform ? <span>{it.problem.platform}</span> : null}
+                          {it.problem.difficulty ? <span> • {it.problem.difficulty}</span> : null}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {/* Mobile fallback controls (drag is poor on touch). */}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={busy || idx === 0}
+                          onClick={() => {
+                            const ids = selected.items.map((x) => x.problem.id);
+                            const next = [...ids];
+                            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                            setDraftIDs(next);
+                            void reorder(next);
+                          }}
+                        >
+                          Up
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={busy || idx === selected.items.length - 1}
+                          onClick={() => {
+                            const ids = selected.items.map((x) => x.problem.id);
+                            const next = [...ids];
+                            [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+                            setDraftIDs(next);
+                            void reorder(next);
+                          }}
+                        >
+                          Down
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>

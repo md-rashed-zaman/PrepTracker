@@ -178,6 +178,42 @@ func (r *Repository) ListForUser(ctx context.Context, userID string) ([]ProblemW
 	return out, nil
 }
 
+type MetadataPatch struct {
+	Platform   *string
+	Title      *string
+	Difficulty *string
+	Topics     *[]string
+}
+
+func (r *Repository) PatchMetadataForUser(ctx context.Context, userID string, problemID string, patch MetadataPatch) (Problem, error) {
+	var topics any = nil
+	if patch.Topics != nil {
+		topics = *patch.Topics
+	}
+
+	var out Problem
+	err := r.pool.QueryRow(ctx, `
+		UPDATE problems p
+		SET platform = COALESCE($3, p.platform),
+		    title = COALESCE($4, p.title),
+		    difficulty = COALESCE($5, p.difficulty),
+		    topics = CASE WHEN $6::text[] IS NULL THEN p.topics ELSE $6 END,
+		    updated_at = now()
+		FROM user_problem_state s
+		WHERE s.user_id = $1 AND s.problem_id = $2 AND p.id = s.problem_id
+		RETURNING p.id::text, p.platform, p.url, p.title, p.difficulty, p.topics
+	`, userID, problemID, patch.Platform, patch.Title, patch.Difficulty, topics).Scan(
+		&out.ID, &out.Platform, &out.URL, &out.Title, &out.Difficulty, &out.Topics,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Problem{}, db.ErrNotFound
+		}
+		return Problem{}, err
+	}
+	return out, nil
+}
+
 func (r *Repository) GetStateForUpdate(ctx context.Context, tx pgx.Tx, userID string, problemID string) (UserState, error) {
 	var s UserState
 	var lastReviewAt *time.Time

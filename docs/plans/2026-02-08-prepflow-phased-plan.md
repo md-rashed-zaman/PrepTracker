@@ -40,3 +40,4 @@ Recommended for MVP:
 8. `docs/plans/phases/phase-06-analytics-and-polish.md`
 9. `docs/plans/phases/phase-07-hardening-and-v2.md`
 10. `docs/plans/phases/phase-08-frontend-mvp.md`
+11. `docs/plans/phases/phase-09-ui-polish.md`
