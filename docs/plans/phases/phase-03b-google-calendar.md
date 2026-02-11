@@ -37,7 +37,7 @@ Goal: upcoming revisions appear in Google Calendar so Google Calendar can notify
 ### Deliverables
 - OAuth connect flow + token storage (refresh token).
 - Choose calendar target:
-  - create a dedicated “PrepFlow” calendar, or
+  - create a dedicated “PrepTracker” calendar, or
   - insert into a calendar the user selects.
 - Sync semantics:
   - on schedule update: upsert event for that problem’s next due date

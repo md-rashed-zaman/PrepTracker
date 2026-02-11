@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/db"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/db"
 )
 
 type TokenRepo struct {

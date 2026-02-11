@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/testutil"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/testutil"
 )
 
 func TestDocsEndpoints(t *testing.T) {

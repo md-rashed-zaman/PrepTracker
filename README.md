@@ -1,6 +1,6 @@
-# PrepFlow
+# PrepTracker
 
-Interview prep tracker with spaced repetition scheduling (SM-2), review logging, and timed contest generation. PrepFlow is not a coding platform: it links out to LeetCode/NeetCode/etc and tracks your recall/revision cadence.
+Interview prep tracker with spaced repetition scheduling (SM-2), review logging, and timed contest generation. PrepTracker is not a coding platform: it links out to LeetCode/NeetCode/etc and tracks your recall/revision cadence.
 
 ## Key Features (MVP)
 
@@ -33,7 +33,7 @@ flowchart LR
 
   subgraph API_MODS["Go API modules"]
     AUTH[Auth module<br/>register/login/refresh/me]
-    DOMAIN[PrepFlow domain<br/>problems/reviews/lists/contests]
+    DOMAIN[PrepTracker domain<br/>problems/reviews/lists/contests]
     CAL[Calendar module<br/>ICS feed]
   end
 
@@ -177,7 +177,7 @@ erDiagram
 ## Docs
 
 - Product requirements and domain rules: `AGENTS.md`
-- Phased execution plan: `docs/plans/2026-02-08-prepflow-phased-plan.md`
+- Phased execution plan: `docs/plans/2026-02-08-preptracker-phased-plan.md`
 - System design (more diagrams): `docs/system-design.md`
 
 ## Local Development (Backend)
@@ -210,7 +210,7 @@ Web app: `http://localhost:3000`
 Starts Postgres + migrations + API + Web:
 
 ```bash
-PREPFLOW_API_PORT=18080 PREPFLOW_WEB_PORT=13000 make compose-up-all
+PREPTRACKER_API_PORT=18080 PREPTRACKER_WEB_PORT=13000 make compose-up-all
 ```
 
 Web app: `http://localhost:13000`
@@ -234,7 +234,7 @@ make test-db
 ## Docker
 
 ```bash
-PREPFLOW_API_PORT=18080 make compose-up-all
+PREPTRACKER_API_PORT=18080 make compose-up-all
 ```
 
 Then open `http://localhost:18080/docs`.

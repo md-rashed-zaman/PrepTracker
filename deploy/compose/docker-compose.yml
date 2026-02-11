@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: prepflow
-      POSTGRES_USER: prepflow
-      POSTGRES_PASSWORD: prepflow
+      POSTGRES_DB: preptracker
+      POSTGRES_USER: preptracker
+      POSTGRES_PASSWORD: preptracker
     ports:
       - "54320:5432"
     volumes:
-      - prepflow_postgres:/var/lib/postgresql/data
+      - preptracker_postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U prepflow -d prepflow"]
+      test: ["CMD-SHELL", "pg_isready -U preptracker -d preptracker"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -20,8 +20,8 @@ services:
       context: ../..
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://prepflow:prepflow@postgres:5432/prepflow?sslmode=disable
-    command: ["/usr/local/bin/prepflow-migrate", "-database", "postgres://prepflow:prepflow@postgres:5432/prepflow?sslmode=disable", "-path", "/app/services/api/migrations", "-up"]
+      DATABASE_URL: postgres://preptracker:preptracker@postgres:5432/preptracker?sslmode=disable
+    command: ["/usr/local/bin/preptracker-migrate", "-database", "postgres://preptracker:preptracker@postgres:5432/preptracker?sslmode=disable", "-path", "/app/services/api/migrations", "-up"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -31,12 +31,12 @@ services:
       context: ../..
       dockerfile: Dockerfile
     environment:
-      DATABASE_URL: postgres://prepflow:prepflow@postgres:5432/prepflow?sslmode=disable
+      DATABASE_URL: postgres://preptracker:preptracker@postgres:5432/preptracker?sslmode=disable
       JWT_SECRET: dev-secret
       REFRESH_TTL_HOURS: "720"
-      OPENAPI_SPEC_PATH: /app/openapi/prepflow.v1.yaml
+      OPENAPI_SPEC_PATH: /app/openapi/preptracker.v1.yaml
     ports:
-      - "${PREPFLOW_API_PORT:-18080}:8080"
+      - "${PREPTRACKER_API_PORT:-18080}:8080"
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -46,12 +46,12 @@ services:
       context: ../..
       dockerfile: apps/web/Dockerfile
     environment:
-      PREPFLOW_API_BASE_URL: http://api:8080
+      PREPTRACKER_API_BASE_URL: http://api:8080
       NODE_ENV: production
     ports:
-      - "${PREPFLOW_WEB_PORT:-13000}:3000"
+      - "${PREPTRACKER_WEB_PORT:-13000}:3000"
     depends_on:
       - api
 
 volumes:
-  prepflow_postgres:
+  preptracker_postgres:

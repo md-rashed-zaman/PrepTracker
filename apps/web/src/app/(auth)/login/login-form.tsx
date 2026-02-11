@@ -43,7 +43,7 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
     <Card>
       <CardHeader>
         <div>
-          <div className="pf-kicker">PrepFlow</div>
+          <div className="pf-kicker">PrepTracker</div>
           <CardTitle>Sign in</CardTitle>
           <CardDescription>Use your email and password.</CardDescription>
         </div>

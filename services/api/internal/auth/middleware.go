@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/reqctx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/reqctx"
 )
 
 func RequireAuth(jwt *JWT) func(http.Handler) http.Handler {

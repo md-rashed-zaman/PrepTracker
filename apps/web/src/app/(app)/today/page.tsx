@@ -162,8 +162,8 @@ export default function TodayPage() {
                   key={p.id}
                   className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="min-w-[240px]">
+                  <div className="space-y-3">
+                    <div className="min-w-0">
                       <div className="pf-display text-lg font-semibold leading-tight">
                         <a
                           href={p.url}
@@ -171,7 +171,7 @@ export default function TodayPage() {
                           rel="noreferrer"
                           className="underline decoration-[rgba(15,118,110,.28)] underline-offset-4 hover:decoration-[rgba(15,118,110,.55)]"
                         >
-                          {p.title || p.url}
+                          <span className="block truncate">{p.title || p.url}</span>
                         </a>
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
@@ -180,25 +180,25 @@ export default function TodayPage() {
                         {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="flex items-center gap-2">
+
+                    <div className="grid gap-2 lg:grid-cols-[110px_minmax(0,1fr)_auto] lg:items-center">
+                      <Input
+                        className="h-9 w-full rounded-full"
+                        inputMode="decimal"
+                        placeholder="min"
+                        value={minutesByID[p.id] || ""}
+                        onChange={(e) =>
+                          setMinutesByID((m) => ({
+                            ...m,
+                            [p.id]: e.target.value,
+                          }))
+                        }
+                        title="Optional time spent (minutes)"
+                      />
+
+                      <div className="flex min-w-0 items-center gap-2">
                         <Input
-                          className="h-9 w-[92px] rounded-full"
-                          inputMode="decimal"
-                          placeholder="min"
-                          value={minutesByID[p.id] || ""}
-                          onChange={(e) =>
-                            setMinutesByID((m) => ({
-                              ...m,
-                              [p.id]: e.target.value,
-                            }))
-                          }
-                          title="Optional time spent (minutes)"
-                        />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          className="h-9 w-[178px] rounded-full"
+                          className="h-9 w-full min-w-0 rounded-full"
                           type="datetime-local"
                           value={reviewedAtByID[p.id] || ""}
                           onChange={(e) =>
@@ -220,27 +220,32 @@ export default function TodayPage() {
                           }
                           disabled={busy === p.id}
                           title="Set reviewed time to now"
+                          className="h-9 shrink-0 rounded-full px-3"
                         >
                           Now
                         </Button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <GradePicker
-                          value={gradeByID[p.id] ?? 3}
-                          onChange={(g) =>
-                            setGradeByID((m) => ({
-                              ...m,
-                              [p.id]: g,
-                            }))
-                          }
-                          disabled={busy === p.id}
-                        />
+
+                      <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 lg:w-auto">
+                        <div className="min-w-0">
+                          <GradePicker
+                            value={gradeByID[p.id] ?? 3}
+                            onChange={(g) =>
+                              setGradeByID((m) => ({
+                                ...m,
+                                [p.id]: g,
+                              }))
+                            }
+                            disabled={busy === p.id}
+                          />
+                        </div>
                         <Button
                           size="sm"
                           variant="primary"
                           onClick={() => postReview(p.id)}
                           disabled={busy === p.id}
                           title="Confirm and log this review"
+                          className="h-9 rounded-full px-4"
                         >
                           Confirm
                         </Button>

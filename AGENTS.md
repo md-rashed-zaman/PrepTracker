@@ -1,8 +1,8 @@
-# PrepFlow — Interview Prep Tracker (Spaced Repetition + Contest Generator)
+# PrepTracker — Interview Prep Tracker (Spaced Repetition + Contest Generator)
 
 This document is the **single source of truth** for product requirements, business logic, and execution plan for an AI agent (or engineering team) to build the system.
 
-For a phase-by-phase execution breakdown, see `docs/plans/2026-02-08-prepflow-phased-plan.md`.
+For a phase-by-phase execution breakdown, see `docs/plans/2026-02-08-preptracker-phased-plan.md`.
 
 ---
 
@@ -78,7 +78,7 @@ Two viable approaches:
 2. Google OAuth + Calendar API (V2 or MVP if you want “proper sync”)
    - User connects their Google account via OAuth.
    - App creates/updates events directly in Google Calendar.
-   - Pros: near real-time updates; better per-event reminders; can create a dedicated “PrepFlow” calendar.
+   - Pros: near real-time updates; better per-event reminders; can create a dedicated “PrepTracker” calendar.
    - Cons: more engineering + token storage; app verification/consent friction depending on configuration.
 
 ---
@@ -303,7 +303,7 @@ Notes/codes belong to the problem track only.
 
 Notes:
 - If using a separate `auth-service`, store credentials (password hash, refresh tokens) in an auth DB/table owned by auth.
-- Keep app-specific settings in the PrepFlow DB (timezone, min_interval_days, preferences). Key by the same `user_id`.
+- Keep app-specific settings in the PrepTracker DB (timezone, min_interval_days, preferences). Key by the same `user_id`.
 
 #### problems
 - id (uuid pk)

@@ -10,10 +10,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/httpx"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/reqctx"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/scheduler"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/users"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/httpx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/reqctx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/scheduler"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/users"
 )
 
 type Handler struct {

@@ -35,7 +35,7 @@ export function GradePicker(props: {
   const { value, onChange, disabled } = props;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
       {[0, 1, 2, 3, 4].map((g) => {
         const selected = value === g;
         return (

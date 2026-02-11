@@ -1,4 +1,4 @@
-module github.com/md-rashed-zaman/PrepFlow
+module github.com/md-rashed-zaman/PrepTracker
 
 go 1.25.6
 

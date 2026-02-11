@@ -31,7 +31,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "PrepFlow",
+  title: "PrepTracker",
   description: "Spaced repetition interview prep tracker.",
 };
 

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/httpx"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/reqctx"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/users"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/httpx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/reqctx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/users"
 )
 
 type Handler struct {
@@ -98,7 +98,7 @@ func (h *Handler) ICS(w http.ResponseWriter, r *http.Request) {
 		start := time.Date(local.Year(), local.Month(), local.Day(), settings.DueHourLocal, settings.DueMinuteLocal, 0, 0, loc)
 		end := start.Add(30 * time.Minute)
 		events = append(events, Event{
-			UID:         "prepflow-" + userID + "-" + d.ProblemID,
+			UID:         "preptracker-" + userID + "-" + d.ProblemID,
 			Summary:     EventSummary(d.Title),
 			Description: d.URL,
 			URL:         d.URL,
@@ -107,7 +107,7 @@ func (h *Handler) ICS(w http.ResponseWriter, r *http.Request) {
 			AllDay:      false,
 		})
 	}
-	ics := BuildICS("PrepFlow", events)
+	ics := BuildICS("PrepTracker", events)
 	w.Header().Set("Content-Type", "text/calendar; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte(ics))

@@ -18,7 +18,7 @@ func TestBuildICSAllDayEvent(t *testing.T) {
 			URL:     "https://example.com/a?b=c",
 		},
 	}
-	out := BuildICS("PrepFlow", events)
+	out := BuildICS("PrepTracker", events)
 	if !strings.Contains(out, "BEGIN:VEVENT\r\n") {
 		t.Fatalf("expected VEVENT")
 	}

@@ -5,9 +5,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/httpx"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/reqctx"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/scheduler"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/httpx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/reqctx"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/scheduler"
 )
 
 type ContestStatsTotals struct {

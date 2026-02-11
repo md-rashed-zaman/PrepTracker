@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
-  title: PrepFlow API
+  title: PrepTracker API
   version: "v1"
   description: |
-    PrepFlow backend API (modular monolith).
+    PrepTracker backend API (modular monolith).
 servers:
   - url: http://localhost:8080
 

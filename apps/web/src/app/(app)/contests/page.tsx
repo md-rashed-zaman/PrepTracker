@@ -389,9 +389,10 @@ export default function ContestsPage() {
                     key={it.problem.id}
                     className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-[240px]">
-                        <div className="pf-display text-base font-semibold leading-tight">
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="pf-display text-base font-semibold leading-tight">
                           <span className="mr-2 text-[color:var(--muted)]">#{idx + 1}</span>
                           <a
                             href={it.problem.url}
@@ -401,8 +402,8 @@ export default function ContestsPage() {
                           >
                             {it.problem.title || it.problem.url}
                           </a>
-                        </div>
-                        <div className="mt-1 text-xs text-[color:var(--muted)]">
+                          </div>
+                          <div className="mt-1 text-xs text-[color:var(--muted)]">
                           {it.problem.platform ? <span>{it.problem.platform}</span> : null}
                           {diff ? (
                             <span className="ml-2 inline-flex">
@@ -411,11 +412,13 @@ export default function ContestsPage() {
                           ) : null}
                           {it.target_minutes ? <span> • target {it.target_minutes}m</span> : null}
                           {recorded ? <span> • recorded</span> : null}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2">
+
+                      <div className="flex flex-wrap items-center justify-end gap-2">
                         <Input
-                          className="h-9 w-[92px] rounded-full"
+                          className="h-9 w-[78px] sm:w-[92px] rounded-full"
                           inputMode="decimal"
                           placeholder="min"
                           value={minutesByID[it.problem.id] || ""}
@@ -428,7 +431,7 @@ export default function ContestsPage() {
                           title="Optional time spent (minutes)"
                         />
                         <label
-                          className="flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-3 py-2 text-xs text-[color:var(--muted)]"
+                          className="flex items-center gap-2 rounded-full border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-2 py-2 sm:px-3 text-[11px] sm:text-xs text-[color:var(--muted)]"
                           title="Checked means you solved without reading the solution. Uncheck if you couldn't solve."
                         >
                           <input
@@ -449,7 +452,7 @@ export default function ContestsPage() {
                             }}
                             disabled={busy || recorded}
                           />
-                          Solved (no solution)
+                          Solved
                         </label>
                         <GradePicker
                           value={g ?? 3}

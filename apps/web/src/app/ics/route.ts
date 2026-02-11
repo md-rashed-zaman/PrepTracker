@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     headers: {
       "content-type": "text/calendar; charset=utf-8",
       // Google Calendar fetches this like a file.
-      "content-disposition": 'inline; filename="prepflow.ics"',
+      "content-disposition": 'inline; filename="preptracker.ics"',
     },
   });
 }

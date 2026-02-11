@@ -1,4 +1,4 @@
-# PrepFlow System Design
+# PrepTracker System Design
 
 This document describes the modular monolith backend architecture, boundaries, and key data flows.
 

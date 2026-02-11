@@ -42,7 +42,7 @@ export default function RegisterPage() {
     <Card>
       <CardHeader>
         <div>
-          <div className="pf-kicker">PrepFlow</div>
+          <div className="pf-kicker">PrepTracker</div>
           <CardTitle>Create account</CardTitle>
           <CardDescription>Start tracking and reviewing today.</CardDescription>
         </div>

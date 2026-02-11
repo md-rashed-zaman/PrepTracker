@@ -2,7 +2,7 @@
 .PHONY: test-db
 
 COMPOSE_FILE ?= deploy/compose/docker-compose.yml
-DATABASE_URL ?= postgres://prepflow:prepflow@localhost:54320/prepflow?sslmode=disable
+DATABASE_URL ?= postgres://preptracker:preptracker@localhost:54320/preptracker?sslmode=disable
 JWT_SECRET ?= dev-secret
 
 compose-up:

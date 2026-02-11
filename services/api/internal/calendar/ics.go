@@ -25,7 +25,7 @@ func BuildICS(calName string, events []Event) string {
 	}
 	w("BEGIN:VCALENDAR")
 	w("VERSION:2.0")
-	w("PRODID:-//PrepFlow//PrepFlow//EN")
+	w("PRODID:-//PrepTracker//PrepTracker//EN")
 	if calName != "" {
 		w("X-WR-CALNAME:" + escapeText(calName))
 	}
@@ -75,7 +75,7 @@ func escapeText(s string) string {
 func EventSummary(title string) string {
 	title = strings.TrimSpace(title)
 	if title == "" {
-		return "PrepFlow review"
+		return "PrepTracker review"
 	}
 	return fmt.Sprintf("Review: %s", title)
 }

@@ -1,4 +1,4 @@
-# PrepFlow Phased Plan (2026-02-08)
+# PrepTracker Phased Plan (2026-02-08)
 
 This document translates `AGENTS.md` into a phase-by-phase execution plan with clear deliverables and exit criteria.
 

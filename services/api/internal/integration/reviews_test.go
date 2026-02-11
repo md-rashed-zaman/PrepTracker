@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/testutil"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/testutil"
 )
 
 func TestReviewSchedulesNextDue(t *testing.T) {

@@ -15,7 +15,7 @@ export type TokenPair = {
 };
 
 export function apiBaseURL() {
-  return (process.env.PREPFLOW_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
+  return (process.env.PREPTRACKER_API_BASE_URL || "http://localhost:8080").replace(/\/+$/, "");
 }
 
 export async function readTokensFromCookies() {
@@ -100,7 +100,7 @@ export async function proxyJSON(opts: ProxyJSONOpts): Promise<NextResponse> {
         status: 502,
         headers: {
           "content-type": "application/json",
-          "x-prepflow-proxy-error": "backend-unreachable",
+          "x-preptracker-proxy-error": "backend-unreachable",
         },
       });
     }

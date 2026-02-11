@@ -11,17 +11,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/auth"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/calendar"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/config"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/contests"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/db"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/docs"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/lists"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/problems"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/reviews"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/stats"
-	"github.com/md-rashed-zaman/PrepFlow/services/api/internal/users"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/auth"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/calendar"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/config"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/contests"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/db"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/docs"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/lists"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/problems"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/reviews"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/stats"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/users"
 )
 
 func main() {

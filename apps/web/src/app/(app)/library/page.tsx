@@ -64,6 +64,7 @@ export default function LibraryPage() {
   const [open, setOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
   const [url, setURL] = React.useState("");
   const [title, setTitle] = React.useState("");
@@ -86,7 +87,8 @@ export default function LibraryPage() {
   const [difficultyFilter, setDifficultyFilter] = React.useState<"all" | "easy" | "medium" | "hard" | "unknown">("all");
   const [platformFilter, setPlatformFilter] = React.useState<string>("all");
   const [topicFilter, setTopicFilter] = React.useState<string>("all");
-  const [showArchived, setShowArchived] = React.useState(false);
+  const [statusFilter, setStatusFilter] = React.useState<"active" | "archived" | "all">("active");
+  const [dueFilter, setDueFilter] = React.useState<"all" | "overdue" | "today" | "soon">("all");
 
   const [editOpen, setEditOpen] = React.useState(false);
   const [editID, setEditID] = React.useState<string>("");
@@ -119,6 +121,28 @@ export default function LibraryPage() {
     void load();
   }, []);
 
+  React.useEffect(() => {
+    // Default: keep filters expanded on small screens, collapsed on desktop.
+    const key = "preptracker.library.filtersOpen";
+    try {
+      const saved = window.localStorage.getItem(key);
+      if (saved === "1") setFiltersOpen(true);
+      else if (saved === "0") setFiltersOpen(false);
+      else setFiltersOpen(window.innerWidth < 768);
+    } catch {
+      setFiltersOpen(window.innerWidth < 768);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    const key = "preptracker.library.filtersOpen";
+    try {
+      window.localStorage.setItem(key, filtersOpen ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [filtersOpen]);
+
   const platforms = React.useMemo(() => {
     const set = new Set<string>();
     for (const p of items) {
@@ -140,7 +164,8 @@ export default function LibraryPage() {
     return items
       .filter((p) => {
         const active = p.state?.is_active ?? true;
-        if (!showArchived && !active) return false;
+        if (statusFilter === "active" && !active) return false;
+        if (statusFilter === "archived" && active) return false;
         if (!includesQuery(p, q)) return false;
 
         const d = normalizeDifficulty(p.difficulty || "");
@@ -148,6 +173,15 @@ export default function LibraryPage() {
 
         if (platformFilter !== "all" && (p.platform || "") !== platformFilter) return false;
         if (topicFilter !== "all" && !(p.topics || []).includes(topicFilter)) return false;
+
+        if (dueFilter !== "all") {
+          const dueAt = p.state?.due_at;
+          if (!dueAt) return false;
+          const dd = daysFromNowISO(dueAt);
+          if (dueFilter === "overdue" && dd >= 0) return false;
+          if (dueFilter === "today" && dd !== 0) return false;
+          if (dueFilter === "soon" && !(dd > 0 && dd <= 3)) return false;
+        }
         return true;
       })
       .sort((a, b) => {
@@ -155,7 +189,19 @@ export default function LibraryPage() {
         const bd = new Date(b.state?.due_at || 0).getTime();
         return ad - bd;
       });
-  }, [items, query, difficultyFilter, platformFilter, topicFilter, showArchived]);
+  }, [items, query, difficultyFilter, platformFilter, topicFilter, statusFilter, dueFilter]);
+
+  const activeFilters = React.useMemo(() => {
+    const out: { key: string; label: string }[] = [];
+    const q = query.trim();
+    if (q) out.push({ key: "q", label: `q: ${q}` });
+    if (difficultyFilter !== "all") out.push({ key: "diff", label: `diff: ${difficultyFilter}` });
+    if (statusFilter !== "active") out.push({ key: "status", label: `status: ${statusFilter}` });
+    if (dueFilter !== "all") out.push({ key: "due", label: `due: ${dueFilter}` });
+    if (platformFilter !== "all") out.push({ key: "platform", label: `platform: ${platformFilter}` });
+    if (topicFilter !== "all") out.push({ key: "topic", label: `topic: ${topicFilter}` });
+    return out;
+  }, [query, difficultyFilter, statusFilter, dueFilter, platformFilter, topicFilter]);
 
   async function createProblem(e: React.FormEvent) {
     e.preventDefault();
@@ -442,70 +488,162 @@ export default function LibraryPage() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto_auto] lg:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="q">Search</Label>
-            <Input
-              id="q"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="title, url, platform, topic..."
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(["all", "easy", "medium", "hard", "unknown"] as const).map((d) => (
-              <Button
-                key={d}
-                type="button"
-                size="sm"
-                variant={difficultyFilter === d ? "primary" : "outline"}
-                onClick={() => setDifficultyFilter(d)}
-              >
-                {d === "all" ? "All" : d[0].toUpperCase() + d.slice(1)}
-              </Button>
-            ))}
-            <Button
-              type="button"
-              size="sm"
-              variant={showArchived ? "primary" : "outline"}
-              onClick={() => setShowArchived((v) => !v)}
-              title="Toggle archived"
-            >
-              {showArchived ? "Showing archived" : "Hide archived"}
-            </Button>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Platform</Label>
-              <select
-                className="h-11 w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-input-bg)] px-4 text-sm shadow-[var(--pf-input-shadow)] outline-none transition focus:border-[rgba(15,118,110,.5)] focus:ring-4 focus:ring-[rgba(15,118,110,.14)]"
-                value={platformFilter}
-                onChange={(e) => setPlatformFilter(e.target.value)}
-              >
-                <option value="all">All</option>
-                {platforms.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+        <div className="mb-4 rounded-[24px] border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.05)]">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div className="min-w-0 flex-1 sm:min-w-[260px]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-medium text-[color:var(--muted)]">Search</div>
+                <Button type="button" size="sm" variant="outline" onClick={() => setFiltersOpen((v) => !v)}>
+                  {filtersOpen ? "Hide filters" : `Filters${activeFilters.length ? ` (${activeFilters.length})` : ""}`}
+                </Button>
+              </div>
+              <Input
+                id="q"
+                className="mt-2 h-11 rounded-full"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search title, URL, platform, topic…"
+              />
+              <div className="mt-2 text-xs text-[color:var(--muted)]">
+                Add a problem here to start tracking. Tracking items show up in <span className="font-medium text-[color:var(--foreground)]">Today</span> when due.
+              </div>
+              {!filtersOpen && activeFilters.length ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {activeFilters.map((f) => (
+                    <Badge key={f.key} className="bg-[color:var(--pf-chip-bg)]">
+                      {f.label}
+                    </Badge>
+                  ))}
+                </div>
+              ) : null}
             </div>
-            <div className="space-y-2">
-              <Label>Topic</Label>
-              <select
-                className="h-11 w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-input-bg)] px-4 text-sm shadow-[var(--pf-input-shadow)] outline-none transition focus:border-[rgba(15,118,110,.5)] focus:ring-4 focus:ring-[rgba(15,118,110,.14)]"
-                value={topicFilter}
-                onChange={(e) => setTopicFilter(e.target.value)}
-              >
-                <option value="all">All</option>
-                {topicsList.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {activeFilters.length ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => {
+                    setQuery("");
+                    setDifficultyFilter("all");
+                    setPlatformFilter("all");
+                    setTopicFilter("all");
+                    setStatusFilter("active");
+                    setDueFilter("all");
+                  }}
+                >
+                  Clear
+                </Button>
+              ) : null}
             </div>
           </div>
+
+          {filtersOpen ? (
+            <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-full flex flex-wrap items-center gap-1 rounded-[18px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-1 sm:w-auto">
+                  {(["all", "easy", "medium", "hard", "unknown"] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => setDifficultyFilter(d)}
+                      className={[
+                        "px-3 py-2 text-xs font-semibold rounded-full transition",
+                        difficultyFilter === d
+                          ? "bg-[color:var(--pf-surface-strong)] shadow-[0_10px_22px_rgba(16,24,40,.06)]"
+                          : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+                      ].join(" ")}
+                      aria-label={`Diff: ${d}`}
+                    >
+                      {d === "all" ? "All" : d[0].toUpperCase() + d.slice(1)}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-full flex flex-wrap items-center gap-1 rounded-[18px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-1 sm:w-auto">
+                  {([
+                    { key: "active", label: "Tracking" },
+                    { key: "archived", label: "Archived" },
+                    { key: "all", label: "All" },
+                  ] as const).map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setStatusFilter(t.key)}
+                      className={[
+                        "px-3 py-2 text-xs font-semibold rounded-full transition",
+                        statusFilter === t.key
+                          ? "bg-[color:var(--pf-surface-strong)] shadow-[0_10px_22px_rgba(16,24,40,.06)]"
+                          : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+                      ].join(" ")}
+                      aria-label={`Status ${t.label}`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-full flex flex-wrap items-center gap-1 rounded-[18px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-1 sm:w-auto">
+                  {([
+                    { key: "all", label: "Any due" },
+                    { key: "overdue", label: "Overdue" },
+                    { key: "today", label: "Due today" },
+                    { key: "soon", label: "Soon" },
+                  ] as const).map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setDueFilter(t.key)}
+                      className={[
+                        "px-3 py-2 text-xs font-semibold rounded-full transition",
+                        dueFilter === t.key
+                          ? "bg-[color:var(--pf-surface-strong)] shadow-[0_10px_22px_rgba(16,24,40,.06)]"
+                          : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+                      ].join(" ")}
+                      aria-label={`Due filter ${t.label}`}
+                      title={t.key === "soon" ? "Due in the next 3 days" : undefined}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2 sm:grid-cols-2 lg:w-[360px]">
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-[color:var(--muted)]">Platform</div>
+                  <select
+                    className="h-11 w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-input-bg)] px-4 text-sm shadow-[var(--pf-input-shadow)] outline-none transition focus:border-[rgba(15,118,110,.5)] focus:ring-4 focus:ring-[rgba(15,118,110,.14)]"
+                    value={platformFilter}
+                    onChange={(e) => setPlatformFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    {platforms.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-[color:var(--muted)]">Topic</div>
+                  <select
+                    className="h-11 w-full rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-input-bg)] px-4 text-sm shadow-[var(--pf-input-shadow)] outline-none transition focus:border-[rgba(15,118,110,.5)] focus:ring-4 focus:ring-[rgba(15,118,110,.14)]"
+                    value={topicFilter}
+                    onChange={(e) => setTopicFilter(e.target.value)}
+                  >
+                    <option value="all">All</option>
+                    {topicsList.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm text-[color:var(--muted)]">
@@ -513,22 +651,6 @@ export default function LibraryPage() {
             Showing <span className="font-medium text-[color:var(--foreground)]">{filtered.length}</span> of{" "}
             <span className="font-medium text-[color:var(--foreground)]">{items.length}</span>.
           </div>
-          {query || difficultyFilter !== "all" || platformFilter !== "all" || topicFilter !== "all" || showArchived ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                setQuery("");
-                setDifficultyFilter("all");
-                setPlatformFilter("all");
-                setTopicFilter("all");
-                setShowArchived(false);
-              }}
-            >
-              Clear filters
-            </Button>
-          ) : null}
         </div>
 
         {error ? (
@@ -560,92 +682,110 @@ export default function LibraryPage() {
         ) : (
           <div className="space-y-4">
             <div className="hidden md:block overflow-hidden rounded-[24px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] shadow-[0_12px_28px_rgba(16,24,40,.06)]">
-              <div className="grid grid-cols-[minmax(0,1fr)_140px_120px_200px] gap-3 border-b border-[color:var(--line)] bg-[color:var(--pf-surface-strong)] px-4 py-3 text-xs font-medium text-[color:var(--muted)]">
-                <div>Problem</div>
-                <div>Due</div>
-                <div>Mastery</div>
-                <div className="text-right">Actions</div>
+              <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] bg-[color:var(--pf-surface-strong)] px-4 py-3 text-xs font-medium text-[color:var(--muted)]">
+                <div>Problems</div>
+                <div className="grid grid-cols-[140px_120px_200px] items-center gap-3 text-right">
+                  <div className="text-left">Due</div>
+                  <div className="text-left">Mastery</div>
+                  <div>Actions</div>
+                </div>
               </div>
-              <div>
-                {filtered.map((p) => {
-                  const active = p.state?.is_active ?? true;
-                  const diff = difficultyChip(p.difficulty || "");
-                  const chip = dueChip(p.state?.due_at);
-                  const d = p.state?.due_at ? daysFromNowISO(p.state.due_at) : 0;
-                  const overdueDays = d < 0 ? Math.abs(d) : 0;
-                  const mastery = masteryScore(p.state?.reps || 0, p.state?.ease || 2.5, overdueDays);
-                  return (
-                    <div
-                      key={p.id}
-                      className="grid grid-cols-[minmax(0,1fr)_140px_120px_200px] gap-3 border-b border-[color:var(--line)] px-4 py-3 hover:bg-[color:var(--pf-surface-hover)]"
-                    >
-                      <div className="min-w-0">
-                        <div className="pf-display text-sm font-semibold leading-tight">
-                          <a
-                            href={p.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline decoration-[rgba(15,118,110,.22)] underline-offset-4 hover:decoration-[rgba(15,118,110,.5)]"
-                          >
-                            <span className="block truncate">{p.title || p.url}</span>
-                          </a>
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
-                          {p.platform ? <span>{p.platform}</span> : null}
-                          {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
-                          <span>• reps {p.state?.reps ?? 0}</span>
-                          {active ? (
-                            <Badge
-                              className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]"
-                              title="Tracking enabled (shows up in Today and Contests)"
+              <div className="p-4">
+                <div className="space-y-3">
+                  {filtered.map((p) => {
+                    const active = p.state?.is_active ?? true;
+                    const diff = difficultyChip(p.difficulty || "");
+                    const chip = dueChip(p.state?.due_at);
+                    const d = p.state?.due_at ? daysFromNowISO(p.state.due_at) : 0;
+                    const overdueDays = d < 0 ? Math.abs(d) : 0;
+                    const mastery = masteryScore(p.state?.reps || 0, p.state?.ease || 2.5, overdueDays);
+                    const masteryPct = Math.round(mastery);
+                    return (
+                      <div
+                        key={p.id}
+                        className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] p-4"
+                      >
+                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px_120px_200px] md:items-start">
+                          <div className="min-w-0 md:pr-2">
+                            <div className="pf-display text-sm font-semibold leading-tight">
+                              <a
+                                href={p.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="underline decoration-[rgba(15,118,110,.22)] underline-offset-4 hover:decoration-[rgba(15,118,110,.5)]"
+                              >
+                                <span className="block truncate">{p.title || p.url}</span>
+                              </a>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
+                              {p.platform ? <span>{p.platform}</span> : null}
+                              {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
+                              <span>• reps {p.state?.reps ?? 0}</span>
+                              {active ? (
+                                <Badge
+                                  className="border-[rgba(15,118,110,.28)] bg-[rgba(15,118,110,.08)]"
+                                  title="Tracking enabled (shows up in Today and Contests)"
+                                >
+                                  Tracking
+                                </Badge>
+                              ) : (
+                                <Badge className="border-[color:var(--line)] bg-[color:var(--pf-surface)]" title="Tracking disabled (archived)">
+                                  Archived
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex items-start justify-start md:justify-end">
+                            {chip ? (
+                              <Badge className={chip.tone}>{chip.label}</Badge>
+                            ) : (
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">No due</Badge>
+                            )}
+                          </div>
+
+                          <div className="flex items-start justify-start md:justify-end">
+                            <div className="inline-flex items-center gap-2">
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{masteryPct}</Badge>
+                              <div className="h-2 w-[84px] overflow-hidden rounded-full border border-[color:var(--line)] bg-[color:var(--pf-surface)]">
+                                <div
+                                  className="h-full bg-[rgba(45,212,191,.42)]"
+                                  style={{ width: `${Math.max(4, Math.min(100, masteryPct))}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-start justify-start gap-2 md:justify-end">
+                            <Button size="sm" variant="secondary" disabled={busy} onClick={() => openEdit(p)}>
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant={active ? "outline" : "primary"}
+                              disabled={busy}
+                              onClick={() => toggleActive(p.id, !active)}
                             >
-                              Tracking
-                            </Badge>
-                          ) : (
-                            <Badge className="border-[color:var(--line)] bg-[color:var(--pf-surface-weak)]" title="Tracking disabled (archived)">
-                              Archived
-                            </Badge>
-                          )}
+                              {active ? "Archive" : "Activate"}
+                            </Button>
+                          </div>
                         </div>
                         {p.topics?.length ? (
-                          <div className="mt-2 flex flex-wrap gap-2">
+                          <div className="mt-3 flex flex-wrap gap-2">
                             {p.topics.slice(0, 6).map((t) => (
                               <Badge key={t} className="bg-[color:var(--pf-chip-bg)]">
                                 {t}
                               </Badge>
                             ))}
+                            {p.topics.length > 6 ? (
+                              <Badge className="bg-[color:var(--pf-chip-bg)]">+{p.topics.length - 6}</Badge>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
-
-                      <div className="flex items-start pt-1">
-                        {chip ? (
-                          <Badge className={chip.tone}>{chip.label}</Badge>
-                        ) : (
-                          <span className="text-xs text-[color:var(--muted)]">—</span>
-                        )}
-                      </div>
-
-                      <div className="flex items-start pt-1">
-                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{Math.round(mastery)}</Badge>
-                      </div>
-
-                      <div className="flex items-start justify-end gap-2 pt-1">
-                        <Button size="sm" variant="secondary" disabled={busy} onClick={() => openEdit(p)}>
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={active ? "outline" : "primary"}
-                          disabled={busy}
-                          onClick={() => toggleActive(p.id, !active)}
-                        >
-                          {active ? "Archive" : "Activate"}
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -660,7 +800,7 @@ export default function LibraryPage() {
                     className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
                   >
                     <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="min-w-[260px]">
+                      <div className="min-w-0 flex-1">
                         <div className="pf-display text-lg font-semibold leading-tight">
                           <a
                             href={p.url}
@@ -690,11 +830,14 @@ export default function LibraryPage() {
                         </div>
                         {p.topics?.length ? (
                           <div className="mt-2 flex flex-wrap gap-2">
-                            {p.topics.slice(0, 8).map((t) => (
+                            {p.topics.slice(0, 5).map((t) => (
                               <Badge key={t} className="bg-[color:var(--pf-chip-bg)]">
                                 {t}
                               </Badge>
                             ))}
+                            {p.topics.length > 5 ? (
+                              <Badge className="bg-[color:var(--pf-chip-bg)]">+{p.topics.length - 5}</Badge>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>

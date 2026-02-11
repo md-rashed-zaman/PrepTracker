@@ -20,7 +20,7 @@ Goal: users can sign up/log in, and all API calls are scoped to a user id.
   - refresh token storage (hashed)
   - endpoint shapes + error handling
 
-Recommended simplifications for PrepFlow:
+Recommended simplifications for PrepTracker:
 - Remove: `business_id`, staff roles, Kafka/outbox publishing, audit endpoint (unless you want it).
 - Keep: `users`, `refresh_tokens` tables (or equivalents).
 

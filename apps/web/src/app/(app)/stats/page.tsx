@@ -1,13 +1,14 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { ContestStatsResponse, ProblemWithState, StatsOverview, TopicStat } from "@/lib/types";
+import { Input } from "@/components/ui/input";
 import { difficultyChip } from "@/lib/presentation";
+import type { ContestStatsResponse, ProblemWithState, StatsOverview, TopicStat } from "@/lib/types";
 
 function Metric({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
@@ -52,8 +53,10 @@ export default function StatsPage() {
   const [overview, setOverview] = React.useState<StatsOverview | null>(null);
   const [topics, setTopics] = React.useState<TopicStat[]>([]);
   const [library, setLibrary] = React.useState<ProblemWithState[]>([]);
-  const [topicOpen, setTopicOpen] = React.useState(false);
   const [activeTopic, setActiveTopic] = React.useState<string>("");
+  const [topicQ, setTopicQ] = React.useState("");
+  const [topicSort, setTopicSort] = React.useState<"due" | "mastery" | "title">("due");
+  const [topicListQ, setTopicListQ] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -119,26 +122,48 @@ export default function StatsPage() {
     void loadContestStats(contestWindow);
   }, [panel, contestWindow]);
 
-  const topicProblems = React.useMemo(() => {
+  React.useEffect(() => {
+    if (panel !== "topics") return;
+    if (!activeTopic) return;
+    void ensureLibraryLoaded();
+  }, [panel, activeTopic]);
+
+  const desktopTopicProblems = React.useMemo(() => {
     const needle = activeTopic.trim().toLowerCase();
     if (!needle) return [];
+    const q = topicQ.trim().toLowerCase();
     const now = Date.now();
-    return library
+    const rows = library
       .filter((p) => (p.state?.is_active ?? true) === true)
       .filter((p) => (p.topics || []).some((t) => (t || "").toLowerCase() === needle))
+      .filter((p) => {
+        if (!q) return true;
+        const hay = `${p.title || ""} ${p.url || ""} ${(p.platform || "").toLowerCase()}`.toLowerCase();
+        return hay.includes(q);
+      })
       .map((p) => {
         const dueAt = p.state?.due_at || "";
-        const od = dueAt ? Math.max(0, Math.floor((now - new Date(dueAt).getTime()) / (1000 * 60 * 60 * 24))) : 0;
-        const mastery = masteryScore(p.state?.reps || 0, p.state?.ease || 2.5, od);
+        const overdueDays = dueAt ? Math.max(0, Math.floor((now - new Date(dueAt).getTime()) / (1000 * 60 * 60 * 24))) : 0;
+        const mastery = masteryScore(p.state?.reps || 0, p.state?.ease || 2.5, overdueDays);
         return { p, mastery };
-      })
-      .sort((a, b) => {
-        const ad = new Date(a.p.state?.due_at || 0).getTime();
-        const bd = new Date(b.p.state?.due_at || 0).getTime();
-        if (ad !== bd) return ad - bd;
-        return b.mastery - a.mastery;
       });
-  }, [library, activeTopic]);
+
+    rows.sort((a, b) => {
+      if (topicSort === "title") return String(a.p.title || a.p.url).localeCompare(String(b.p.title || b.p.url));
+      if (topicSort === "mastery") return b.mastery - a.mastery;
+      const ad = new Date(a.p.state?.due_at || 0).getTime();
+      const bd = new Date(b.p.state?.due_at || 0).getTime();
+      if (ad !== bd) return ad - bd;
+      return b.mastery - a.mastery;
+    });
+    return rows;
+  }, [library, activeTopic, topicQ, topicSort]);
+
+  const filteredTopics = React.useMemo(() => {
+    const q = topicListQ.trim().toLowerCase();
+    if (!q) return topics;
+    return topics.filter((t) => String(t.topic || "").toLowerCase().includes(q));
+  }, [topics, topicListQ]);
 
   return (
     <div className="space-y-5">
@@ -217,61 +242,244 @@ export default function StatsPage() {
       </Card>
 
       {panel === "topics" ? (
-        <Card>
-          <CardHeader>
-            <div>
-              <div className="pf-kicker">Topics</div>
-              <CardTitle>Mastery by topic</CardTitle>
-              <CardDescription>Based on reps, ease, and overdue penalty (v1).</CardDescription>
-            </div>
-            <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{topics.length} topics</Badge>
-          </CardHeader>
-          <CardContent>
-            {topics.length === 0 ? (
-              <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
-                Add topics to problems to see breakdowns.
+        <div className="space-y-5">
+          {/* Mobile: topic links navigate to the dedicated drilldown page */}
+          <Card className="lg:hidden">
+            <CardHeader>
+              <div>
+                <div className="pf-kicker">Topics</div>
+                <CardTitle>Mastery by topic</CardTitle>
+                <CardDescription>Tap a topic to see the full list.</CardDescription>
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-[color:var(--muted)]">
-                      <th className="py-2 pr-4">Topic</th>
-                      <th className="py-2 pr-4">Problems</th>
-                      <th className="py-2 pr-4">Mastery avg</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topics.map((t) => (
-                      <tr
-                        key={t.topic}
-                        className="border-t border-[color:var(--line)] hover:bg-[color:var(--pf-surface-weak)] cursor-pointer"
-                        onClick={async () => {
-                          setActiveTopic(t.topic);
-                          await ensureLibraryLoaded();
-                          setTopicOpen(true);
-                        }}
-                        title="View problems in this topic"
-                      >
-                        <td className="py-3 pr-4">
-                          <span className="pf-display font-semibold capitalize underline decoration-[rgba(45,212,191,.22)] underline-offset-4">
-                            {t.topic}
-                          </span>
-                        </td>
-                        <td className="py-3 pr-4 text-[color:var(--muted)]">{t.count}</td>
-                        <td className="py-3 pr-4">
-                          <Badge className="border-[rgba(45,212,191,.28)] bg-[rgba(45,212,191,.10)]">
-                            {t.mastery_avg}
-                          </Badge>
-                        </td>
+              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{topics.length} topics</Badge>
+            </CardHeader>
+            <CardContent>
+              {topics.length === 0 ? (
+                <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                  Add topics to problems to see breakdowns.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-[color:var(--muted)]">
+                        <th className="py-2 pr-4">Topic</th>
+                        <th className="py-2 pr-4">Problems</th>
+                        <th className="py-2 pr-4">Mastery avg</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </thead>
+                    <tbody>
+                      {topics.map((t) => (
+                        <tr key={t.topic} className="border-t border-[color:var(--line)] hover:bg-[color:var(--pf-surface-weak)]">
+                          <td className="py-3 pr-4">
+                            <Link
+                              href={`/stats/topics/${encodeURIComponent(t.topic)}`}
+                              className="pf-display font-semibold capitalize underline decoration-[rgba(45,212,191,.22)] underline-offset-4 hover:decoration-[rgba(45,212,191,.5)]"
+                              title="View problems in this topic"
+                            >
+                              {t.topic}
+                            </Link>
+                          </td>
+                          <td className="py-3 pr-4 text-[color:var(--muted)]">{t.count}</td>
+                          <td className="py-3 pr-4">
+                            <Badge className="border-[rgba(45,212,191,.28)] bg-[rgba(45,212,191,.10)]">
+                              {t.mastery_avg}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Desktop: 2-panel drilldown (no modal) */}
+          <div className="hidden gap-5 lg:grid lg:grid-cols-[420px_1fr]">
+            <Card>
+              <CardHeader className="flex-wrap items-end gap-3">
+                <div className="min-w-0">
+                  <div className="pf-kicker">Topics</div>
+                  <CardTitle>Mastery by topic</CardTitle>
+                  <CardDescription>Click a topic to preview its problems.</CardDescription>
+                </div>
+                <div className="flex w-full items-center gap-2 sm:w-auto">
+                  <Input
+                    placeholder="Search topics…"
+                    value={topicListQ}
+                    onChange={(e) => setTopicListQ(e.target.value)}
+                    className="h-9 w-full rounded-full sm:w-[220px]"
+                  />
+                  <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">{topics.length}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filteredTopics.length === 0 ? (
+                  <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                    No topics match your search.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-xs text-[color:var(--muted)]">
+                          <th className="py-2 pr-4">Topic</th>
+                          <th className="py-2 pr-4">Count</th>
+                          <th className="py-2 pr-4">Avg</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredTopics.map((t) => {
+                          const selected = activeTopic.trim().toLowerCase() === String(t.topic || "").trim().toLowerCase();
+                          return (
+                            <tr
+                              key={t.topic}
+                              className={[
+                                "border-t border-[color:var(--line)]",
+                                "hover:bg-[color:var(--pf-surface-weak)]",
+                                selected ? "bg-[rgba(15,118,110,.06)]" : "",
+                              ].join(" ")}
+                            >
+                              <td className="py-3 pr-4">
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveTopic(t.topic)}
+                                  className="pf-display font-semibold capitalize underline decoration-[rgba(45,212,191,.18)] underline-offset-4 hover:decoration-[rgba(45,212,191,.45)]"
+                                  title="Show in the right panel"
+                                >
+                                  {t.topic}
+                                </button>
+                                <div className="mt-1 text-[11px] text-[color:var(--muted)]">
+                                  <Link
+                                    href={`/stats/topics/${encodeURIComponent(t.topic)}`}
+                                    className="underline underline-offset-4 hover:opacity-90"
+                                    title="Open full drilldown page"
+                                  >
+                                    Open
+                                  </Link>
+                                </div>
+                              </td>
+                              <td className="py-3 pr-4 text-[color:var(--muted)]">{t.count}</td>
+                              <td className="py-3 pr-4">
+                                <Badge className="border-[rgba(45,212,191,.28)] bg-[rgba(45,212,191,.10)]">
+                                  {t.mastery_avg}
+                                </Badge>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex-wrap items-end gap-3">
+                <div className="min-w-0">
+                  <div className="pf-kicker">Details</div>
+                  <CardTitle>{activeTopic ? <span className="capitalize">{activeTopic}</span> : "Select a topic"}</CardTitle>
+                  <CardDescription>
+                    {activeTopic ? "Scan due pressure and mastery, then click through to practice." : "Pick a topic on the left to see problems here."}
+                  </CardDescription>
+                </div>
+                {activeTopic ? (
+                  <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
+                    <Input
+                      placeholder="Search problems…"
+                      value={topicQ}
+                      onChange={(e) => setTopicQ(e.target.value)}
+                      className="h-9 w-full rounded-full sm:w-[260px]"
+                    />
+                    <div className="inline-flex rounded-full border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] p-1">
+                      {([
+                        { key: "due", label: "Due" },
+                        { key: "mastery", label: "Mastery" },
+                        { key: "title", label: "Title" },
+                      ] as const).map((t) => (
+                        <button
+                          key={t.key}
+                          type="button"
+                          onClick={() => setTopicSort(t.key)}
+                          className={[
+                            "px-3 py-2 text-xs font-semibold rounded-full transition",
+                            topicSort === t.key
+                              ? "bg-[color:var(--pf-surface-strong)] shadow-[0_10px_22px_rgba(16,24,40,.06)]"
+                              : "text-[color:var(--muted)] hover:text-[color:var(--foreground)]",
+                          ].join(" ")}
+                          aria-label={`Sort by ${t.label}`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </CardHeader>
+              <CardContent>
+                {!activeTopic ? (
+                  <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                    Select a topic to view problems.
+                  </div>
+                ) : desktopTopicProblems.length === 0 ? (
+                  <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
+                    No problems found for this topic.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {desktopTopicProblems.map(({ p, mastery }) => {
+                      const chip = dueChip(p.state?.due_at);
+                      const diff = difficultyChip(p.difficulty || "");
+                      return (
+                        <div
+                          key={p.id}
+                          className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="min-w-[240px]">
+                              <div className="pf-display text-base font-semibold leading-tight">
+                                <a
+                                  href={p.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="underline decoration-[rgba(45,212,191,.22)] underline-offset-4 hover:decoration-[rgba(45,212,191,.5)]"
+                                >
+                                  {p.title || p.url}
+                                </a>
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
+                                {p.platform ? <span>{p.platform}</span> : null}
+                                {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
+                                {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                                mastery {Math.round(mastery)}
+                              </Badge>
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">reps {p.state?.reps ?? 0}</Badge>
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                                ease {(p.state?.ease ?? 2.5).toFixed(2)}
+                              </Badge>
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                                interval {p.state?.interval_days ?? 1}d
+                              </Badge>
+                              <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
+                                last {(p.state as any)?.last_grade ?? "—"}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       ) : (
         <Card>
           <CardHeader>
@@ -406,73 +614,6 @@ export default function StatsPage() {
           </CardContent>
         </Card>
       )}
-
-      <Dialog open={topicOpen} onOpenChange={setTopicOpen}>
-        <DialogContent className="w-[min(860px,calc(100vw-28px))]">
-          <DialogHeader>
-            <DialogTitle>
-              Topic: <span className="capitalize">{activeTopic || "…"}</span>
-            </DialogTitle>
-          </DialogHeader>
-          {topicProblems.length === 0 ? (
-            <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] px-4 py-8 text-sm text-[color:var(--muted)]">
-              No problems found for this topic.
-            </div>
-          ) : (
-            <div className="max-h-[560px] space-y-2 overflow-auto pr-1">
-              {topicProblems.map(({ p, mastery }) => {
-                const chip = dueChip(p.state?.due_at);
-                return (
-                  <div
-                    key={p.id}
-                    className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] p-4 shadow-[0_12px_28px_rgba(16,24,40,.06)]"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="min-w-[240px]">
-                        <div className="pf-display text-base font-semibold leading-tight">
-                          <a
-                            href={p.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline decoration-[rgba(45,212,191,.22)] underline-offset-4 hover:decoration-[rgba(45,212,191,.5)]"
-                          >
-                            {p.title || p.url}
-                          </a>
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[color:var(--muted)]">
-                          {p.platform ? <span>{p.platform}</span> : null}
-                          {(() => {
-                            const diff = difficultyChip(p.difficulty || "");
-                            return diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null;
-                          })()}
-                          {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
-                          mastery {Math.round(mastery)}
-                        </Badge>
-                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
-                          reps {p.state?.reps ?? 0}
-                        </Badge>
-                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
-                          ease {(p.state?.ease ?? 2.5).toFixed(2)}
-                        </Badge>
-                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
-                          interval {p.state?.interval_days ?? 1}d
-                        </Badge>
-                        <Badge className="border-[color:var(--line)] bg-[color:var(--pf-chip-bg)]">
-                          last {(p.state as any)?.last_grade ?? "—"}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

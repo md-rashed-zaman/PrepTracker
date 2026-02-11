@@ -32,7 +32,7 @@ var swaggerTmpl = template.Must(template.New("swagger").Parse(`<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>PrepFlow API Docs</title>
+    <title>PrepTracker API Docs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -228,12 +228,12 @@ var swaggerTmpl = template.Must(template.New("swagger").Parse(`<!doctype html>
     <header class="pf-header">
       <div class="pf-header-inner">
         <div class="pf-brand">
-          <div class="pf-kicker">PrepFlow</div>
+          <div class="pf-kicker">PrepTracker</div>
           <div class="pf-title">API Docs</div>
         </div>
         <nav class="pf-nav" aria-label="Docs navigation">
           <a href="/openapi.yaml">OpenAPI YAML</a>
-          <a href="https://github.com/md-rashed-zaman/PrepFlow" target="_blank" rel="noreferrer">GitHub</a>
+          <a href="https://github.com/md-rashed-zaman/PrepTracker" target="_blank" rel="noreferrer">GitHub</a>
         </nav>
       </div>
     </header>
@@ -276,15 +276,15 @@ func resolveSpecPath(specPath string) string {
 	}
 
 	// Common cases:
-	// - Local dev from repo root: ./openapi/prepflow.v1.yaml
+	// - Local dev from repo root: ./openapi/preptracker.v1.yaml
 	// - Tests run from a package dir: walk up to repo root.
 	cwd, err := os.Getwd()
 	if err == nil {
 		candidates := []string{
-			filepath.Join(cwd, "openapi", "prepflow.v1.yaml"),
+			filepath.Join(cwd, "openapi", "preptracker.v1.yaml"),
 		}
 		if root := findRepoRoot(cwd); root != "" {
-			candidates = append(candidates, filepath.Join(root, "openapi", "prepflow.v1.yaml"))
+			candidates = append(candidates, filepath.Join(root, "openapi", "preptracker.v1.yaml"))
 		}
 		for _, p := range candidates {
 			if _, err := os.Stat(p); err == nil {
@@ -292,7 +292,7 @@ func resolveSpecPath(specPath string) string {
 			}
 		}
 	}
-	return "./openapi/prepflow.v1.yaml"
+	return "./openapi/preptracker.v1.yaml"
 }
 
 func findRepoRoot(start string) string {
