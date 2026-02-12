@@ -1,6 +1,8 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +61,8 @@ function dueChip(iso?: string) {
 }
 
 export default function LibraryPage() {
+  const pathname = usePathname();
+  const returnTo = pathname;
   const [items, setItems] = React.useState<ProblemWithState[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [open, setOpen] = React.useState(false);
@@ -684,7 +688,7 @@ export default function LibraryPage() {
             <div className="hidden md:block overflow-hidden rounded-[24px] border border-[color:var(--line)] bg-[color:var(--pf-surface)] shadow-[0_12px_28px_rgba(16,24,40,.06)]">
               <div className="flex items-center justify-between gap-4 border-b border-[color:var(--line)] bg-[color:var(--pf-surface-strong)] px-4 py-3 text-xs font-medium text-[color:var(--muted)]">
                 <div>Problems</div>
-                <div className="grid grid-cols-[140px_120px_200px] items-center gap-3 text-right">
+                <div className="grid grid-cols-[140px_120px_260px] items-center gap-3 text-right">
                   <div className="text-left">Due</div>
                   <div className="text-left">Mastery</div>
                   <div>Actions</div>
@@ -705,7 +709,7 @@ export default function LibraryPage() {
                         key={p.id}
                         className="rounded-[20px] border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] p-4"
                       >
-                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px_120px_200px] md:items-start">
+                        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_140px_120px_260px] md:items-start">
                           <div className="min-w-0 md:pr-2">
                             <div className="pf-display text-sm font-semibold leading-tight">
                               <a
@@ -757,6 +761,9 @@ export default function LibraryPage() {
                           </div>
 
                           <div className="flex flex-wrap items-start justify-start gap-2 md:justify-end">
+                            <Button asChild size="sm" variant="outline" disabled={busy}>
+                              <Link href={`/library/${encodeURIComponent(p.id)}/notes?returnTo=${encodeURIComponent(returnTo)}`}>Notes</Link>
+                            </Button>
                             <Button size="sm" variant="secondary" disabled={busy} onClick={() => openEdit(p)}>
                               Edit
                             </Button>
@@ -842,6 +849,9 @@ export default function LibraryPage() {
                         ) : null}
                       </div>
                       <div className="flex items-center gap-2">
+                        <Button asChild size="sm" variant="outline" disabled={busy}>
+                          <Link href={`/library/${encodeURIComponent(p.id)}/notes?returnTo=${encodeURIComponent(returnTo)}`}>Notes</Link>
+                        </Button>
                         <Button size="sm" variant="secondary" disabled={busy} onClick={() => openEdit(p)}>
                           Edit
                         </Button>

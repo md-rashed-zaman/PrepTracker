@@ -25,6 +25,14 @@
   --pf-input-shadow: 0 1px 0 rgba(16, 24, 40, 0.04);
   --pf-ring: rgba(15, 118, 110, 0.18);
   --pf-ring-focus: rgba(15, 118, 110, 0.16);
+
+  /* Code highlighting tokens (notes editor). */
+  --pf-code-fg: #101828;
+  --pf-code-comment: rgba(16, 24, 40, 0.56);
+  --pf-code-keyword: #0f766e;
+  --pf-code-string: #a16207;
+  --pf-code-title: #1d4ed8;
+  --pf-code-number: #0f766e;
 }
 
 :root[data-theme="dark"] {
@@ -50,6 +58,14 @@
   --pf-input-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
   --pf-ring: rgba(45, 212, 191, 0.22);
   --pf-ring-focus: rgba(45, 212, 191, 0.18);
+
+  /* Code highlighting tokens (notes editor). */
+  --pf-code-fg: rgba(248, 250, 252, 0.9);
+  --pf-code-comment: rgba(248, 250, 252, 0.46);
+  --pf-code-keyword: #2dd4bf;
+  --pf-code-string: #fbbf24;
+  --pf-code-title: #60a5fa;
+  --pf-code-number: #34d399;
 }
 
 @theme inline {
@@ -134,4 +150,320 @@ a {
 
 .pf-display {
   font-family: var(--pf-font-display);
+}
+
+.pf-notes-editor {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: var(--pf-surface);
+  box-shadow: var(--pf-input-shadow);
+  padding: 14px 14px;
+}
+
+.pf-notes-editor .ProseMirror {
+  outline: none;
+  min-height: 52vh;
+  color: var(--foreground);
+  line-height: 1.6;
+}
+
+.pf-notes-editor .ProseMirror p {
+  margin: 10px 0;
+}
+
+.pf-notes-editor .ProseMirror h1 {
+  font-family: var(--pf-font-display);
+  font-size: 24px;
+  font-weight: 650;
+  margin: 18px 0 10px 0;
+}
+
+.pf-notes-editor .ProseMirror h2 {
+  font-family: var(--pf-font-display);
+  font-size: 20px;
+  font-weight: 650;
+  margin: 16px 0 8px 0;
+}
+
+.pf-notes-editor .ProseMirror h3 {
+  font-family: var(--pf-font-display);
+  font-size: 16px;
+  font-weight: 650;
+  margin: 14px 0 6px 0;
+}
+
+.pf-notes-editor .ProseMirror blockquote {
+  border-left: 3px solid rgba(45, 212, 191, 0.55);
+  padding-left: 12px;
+  color: var(--muted);
+  margin: 12px 0;
+}
+
+.pf-notes-editor .ProseMirror pre {
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--pf-surface-weak);
+  border: 1px solid var(--line);
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pf-notes-editor .ProseMirror code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.pf-notes-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 16px 0;
+}
+
+.pf-notes-editor .ProseMirror ul,
+.pf-notes-editor .ProseMirror ol {
+  padding-left: 22px;
+  margin: 10px 0;
+}
+
+.pf-notes-editor .ProseMirror a {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(45, 212, 191, 0.35);
+}
+
+.pf-notes-editor .ProseMirror a:hover {
+  text-decoration-color: rgba(45, 212, 191, 0.6);
+}
+
+/* Notes: code blocks + tabbed code */
+.pf-codeblock {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--pf-surface-weak);
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.pf-codeblock__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--pf-surface);
+}
+
+.pf-codeblock__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pf-codeblock__kicker {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pf-codeblock__select {
+  background: var(--pf-input-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.pf-codeblock__btn {
+  background: rgba(15, 118, 110, 0.12);
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] .pf-codeblock__btn {
+  background: rgba(45, 212, 191, 0.12);
+  border-color: rgba(45, 212, 191, 0.26);
+}
+
+.pf-codeblock__pre {
+  margin: 0;
+  border: none;
+  padding: 12px 14px;
+  background: transparent;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.pf-codeblock__code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.pf-code-tabs {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--pf-surface-weak);
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.pf-code-tabs__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--pf-surface);
+}
+
+.pf-code-tabs__tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pf-code-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.pf-code-tabs__tab--active {
+  background: rgba(15, 118, 110, 0.12);
+  border-color: rgba(15, 118, 110, 0.26);
+}
+
+:root[data-theme="dark"] .pf-code-tabs__tab--active {
+  background: rgba(45, 212, 191, 0.12);
+  border-color: rgba(45, 212, 191, 0.28);
+}
+
+.pf-code-tabs__tabX {
+  opacity: 0.7;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.pf-code-tabs__tab:hover .pf-code-tabs__tabX {
+  opacity: 1;
+}
+
+.pf-code-tabs__add {
+  border-radius: 999px;
+  padding: 6px 10px;
+  border: 1px dashed rgba(15, 118, 110, 0.35);
+  background: rgba(15, 118, 110, 0.08);
+  font-size: 12px;
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] .pf-code-tabs__add {
+  border-color: rgba(45, 212, 191, 0.36);
+  background: rgba(45, 212, 191, 0.08);
+}
+
+.pf-code-tabs__body {
+  padding: 12px 14px;
+}
+
+.pf-code-tabs__meta {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.pf-code-tabs__label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pf-code-tabs__select {
+  background: var(--pf-input-bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: var(--foreground);
+  font-size: 12px;
+}
+
+.pf-code-tabs__hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.pf-code-tabs__textarea {
+  width: 100%;
+  min-height: 220px;
+  resize: vertical;
+  background: var(--pf-surface-weak);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px 12px;
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.6;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.pf-code-tabs__textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--pf-ring-focus);
+}
+
+/* Minimal syntax colors for lowlight/highlight.js classes */
+.pf-notes-editor .hljs {
+  color: var(--pf-code-fg);
+}
+
+.pf-notes-editor .hljs-comment,
+.pf-notes-editor .hljs-quote {
+  color: var(--pf-code-comment);
+}
+
+.pf-notes-editor .hljs-keyword,
+.pf-notes-editor .hljs-selector-tag,
+.pf-notes-editor .hljs-built_in,
+.pf-notes-editor .hljs-literal,
+.pf-notes-editor .hljs-symbol {
+  color: var(--pf-code-keyword);
+}
+
+.pf-notes-editor .hljs-string,
+.pf-notes-editor .hljs-attr,
+.pf-notes-editor .hljs-template-tag,
+.pf-notes-editor .hljs-template-variable {
+  color: var(--pf-code-string);
+}
+
+.pf-notes-editor .hljs-title,
+.pf-notes-editor .hljs-function,
+.pf-notes-editor .hljs-section {
+  color: var(--pf-code-title);
+}
+
+.pf-notes-editor .hljs-number,
+.pf-notes-editor .hljs-meta,
+.pf-notes-editor .hljs-params {
+  color: var(--pf-code-number);
 }

@@ -28,6 +28,20 @@ test("mobile: bottom nav works and pages render", async ({ page }) => {
   await page.getByTestId("mobile-tab-library").click();
   await expect(page.getByRole("heading", { name: "Problems" })).toBeVisible();
 
+  // Notes deep link should show a back button in the mobile header.
+  await page.getByRole("button", { name: "Add problem" }).click();
+  await page.getByLabel("URL").fill("https://leetcode.com/problems/two-sum/");
+  await page.getByLabel("Title").fill("Two Sum");
+  await page.getByLabel("Platform").fill("LeetCode");
+  await page.getByLabel("Difficulty").fill("Easy");
+  await page.getByLabel("Topics").fill("arrays, hashmap");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await page.getByRole("link", { name: "Notes" }).first().click();
+  await expect(page.getByTestId("mobile-back")).toBeVisible();
+  await page.getByTestId("mobile-back").click();
+  await expect(page.getByRole("heading", { name: "Problems" })).toBeVisible();
+
   await expectNoClientError(page);
   expect(pageErrors, `page errors: ${pageErrors.join("\n")}`).toHaveLength(0);
 });

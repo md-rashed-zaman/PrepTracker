@@ -33,6 +33,21 @@ export type ProblemWithState = Problem & {
   state?: UserState;
 };
 
+export type ProblemNotesGetResponse = {
+  exists: boolean;
+  problem_id: string;
+  content_md: string;
+  content_json: any;
+  updated_at?: string | null;
+};
+
+export type ProblemNotesPutResponse = {
+  problem_id: string;
+  updated_at: string;
+  exists: boolean;
+  bytes: number;
+};
+
 export type PostReviewResponse = {
   problem_id?: string;
   reviewed_at?: string;

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import * as React from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +35,8 @@ function dueLabel(iso: string) {
 }
 
 export default function TodayPage() {
+  const pathname = usePathname();
+  const returnTo = pathname;
   const [items, setItems] = React.useState<ProblemWithState[]>([]);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -178,6 +182,9 @@ export default function TodayPage() {
                         {p.platform ? <span>{p.platform}</span> : null}
                         {diff ? <Badge className={diff.tone}>{diff.label}</Badge> : null}
                         {chip ? <Badge className={chip.tone}>{chip.label}</Badge> : null}
+                        <Button asChild size="sm" variant="outline" className="h-7 rounded-full px-3 text-xs">
+                          <Link href={`/library/${encodeURIComponent(p.id)}/notes?returnTo=${encodeURIComponent(returnTo)}`}>Notes</Link>
+                        </Button>
                       </div>
                     </div>
 

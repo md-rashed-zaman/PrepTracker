@@ -11,6 +11,7 @@ tags:
   - name: Auth
   - name: Users
   - name: Problems
+  - name: Notes
   - name: Reviews
   - name: Lists
   - name: Contests
@@ -216,6 +217,56 @@ paths:
           description: Unauthorized
         "404":
           description: Not found
+
+  /api/v1/problems/{id}/notes:
+    get:
+      tags: [Notes]
+      summary: Get the notes document for a problem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemNotesGetResponse"
+        "401":
+          description: Unauthorized
+    put:
+      tags: [Notes]
+      summary: Upsert the notes document for a problem
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProblemNotesPutRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemNotesPutResponse"
+        "400":
+          description: Invalid request
+        "401":
+          description: Unauthorized
 
   /api/v1/reviews/due:
     get:
@@ -835,6 +886,47 @@ components:
           type: array
           items:
             type: string
+
+    ProblemNotesGetResponse:
+      type: object
+      required: [exists, problem_id, content_md, content_json]
+      properties:
+        exists:
+          type: boolean
+        problem_id:
+          type: string
+        content_md:
+          type: string
+        content_json:
+          type: object
+          description: TipTap/ProseMirror JSON document
+        updated_at:
+          type: string
+          description: RFC3339 timestamp (UTC)
+
+    ProblemNotesPutRequest:
+      type: object
+      required: [content_md, content_json]
+      properties:
+        content_md:
+          type: string
+        content_json:
+          type: object
+          description: TipTap/ProseMirror JSON document
+
+    ProblemNotesPutResponse:
+      type: object
+      required: [problem_id, updated_at, exists, bytes]
+      properties:
+        problem_id:
+          type: string
+        updated_at:
+          type: string
+          description: RFC3339 timestamp (UTC)
+        exists:
+          type: boolean
+        bytes:
+          type: integer
     PostReviewRequest:
       type: object
       required: [problem_id, grade]

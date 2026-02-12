@@ -24,6 +24,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [returnTo, setReturnTo] = React.useState<string | null>(null);
 
   async function logout() {
     setBusy(true);
@@ -40,6 +41,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const inStatsTopic = pathname.startsWith("/stats/topics/");
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const v = new URLSearchParams(window.location.search).get("returnTo");
+    setReturnTo(v && v.startsWith("/") ? v : null);
+  }, [pathname]);
+
+  const isTopRoute = NAV.some((x) => x.href === pathname);
+  const mobileBackHref = React.useMemo(() => {
+    if (returnTo && returnTo.startsWith("/")) return returnTo;
+    if (pathname.startsWith("/stats/topics/")) return "/stats";
+    if (pathname.startsWith("/library/")) return "/library";
+    if (pathname.startsWith("/lists/")) return "/lists";
+    if (pathname.startsWith("/contests/")) return "/contests";
+    return null;
+  }, [pathname, returnTo]);
+  const showMobileBack = !isTopRoute && Boolean(mobileBackHref);
+
   return (
     <div className="pf-container pb-[calc(124px+env(safe-area-inset-bottom))] lg:pb-[64px]">
       {/* Mobile top bar */}
@@ -48,11 +66,12 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                {inStatsTopic ? (
+                {showMobileBack ? (
                   <Link
-                    href="/stats"
-                    aria-label="Back to Stats"
+                    href={mobileBackHref || (inStatsTopic ? "/stats" : "/today")}
+                    aria-label="Back"
                     className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-[color:var(--line)] bg-[color:var(--pf-surface-weak)] transition hover:bg-[color:var(--pf-surface)]"
+                    data-testid="mobile-back"
                   >
                     <ArrowLeft className="h-4 w-4" />
                   </Link>

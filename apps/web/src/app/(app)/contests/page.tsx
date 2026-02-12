@@ -1,7 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,8 @@ function fmtMMSS(ms: number) {
 }
 
 export default function ContestsPage() {
+  const pathname = usePathname();
+  const returnTo = pathname;
   const router = useRouter();
   const [durationMinutes, setDurationMinutes] = React.useState("60");
   const [strategy, setStrategy] = React.useState<Strategy>("balanced");
@@ -412,6 +415,11 @@ export default function ContestsPage() {
                           ) : null}
                           {it.target_minutes ? <span> • target {it.target_minutes}m</span> : null}
                           {recorded ? <span> • recorded</span> : null}
+                          <span className="ml-2 inline-flex">
+                            <Button asChild size="sm" variant="outline" className="h-7 rounded-full px-3 text-xs">
+                              <Link href={`/library/${encodeURIComponent(it.problem.id)}/notes?returnTo=${encodeURIComponent(returnTo)}`}>Notes</Link>
+                            </Button>
+                          </span>
                           </div>
                         </div>
                       </div>

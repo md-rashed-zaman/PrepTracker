@@ -18,6 +18,7 @@ import (
 	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/db"
 	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/docs"
 	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/lists"
+	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/notes"
 	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/problems"
 	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/reviews"
 	"github.com/md-rashed-zaman/PrepTracker/services/api/internal/stats"
@@ -53,6 +54,9 @@ func main() {
 	problemsHandler := problems.NewHandler(problemsRepo, userRepo)
 	reviewsHandler := reviews.NewHandler(pool, userRepo, problemsRepo)
 	usersHandler := users.NewHandler(userRepo)
+
+	notesRepo := notes.NewRepository(pool)
+	notesHandler := notes.NewHandler(notesRepo)
 
 	listsRepo := lists.NewRepository(pool)
 	listsHandler := lists.NewHandler(pool, listsRepo, problemsRepo, userRepo)
@@ -105,6 +109,8 @@ func main() {
 				r.Post("/", problemsHandler.Create)
 				r.Get("/", problemsHandler.List)
 				r.Patch("/{id}", problemsHandler.Patch)
+				r.Get("/{id}/notes", notesHandler.Get)
+				r.Put("/{id}/notes", notesHandler.Put)
 			})
 			r.Route("/reviews", func(r chi.Router) {
 				r.Get("/due", reviewsHandler.Due)

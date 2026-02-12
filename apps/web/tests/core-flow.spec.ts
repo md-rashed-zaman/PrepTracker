@@ -29,6 +29,40 @@ test("core flow: add problem -> due -> review -> ICS", async ({ page, request })
   await expect(page.getByRole("link", { name: "Two Sum" })).toBeVisible();
   await expectNoClientError(page);
 
+  // Add notes (single living doc)
+  await page.getByRole("link", { name: "Notes" }).first().click();
+  await expect(page.getByRole("heading", { name: "Notes" })).toBeVisible();
+  await page.locator(".ProseMirror").click();
+  await page.keyboard.type("Takeaway: use a hashmap to store seen values.");
+  await expect(page.getByText(/^Saved/)).toBeVisible({ timeout: 10000 });
+  const md = `# Complexity
+- Time complexity: O(n)
+- Space complexity: O(1)
+
+\`\`\`cpp
+int twoSum(vector<int>& nums) {
+  return 0;
+}
+\`\`\``;
+  await page.evaluate((markdown) => {
+    const el = document.querySelector(".ProseMirror");
+    if (!el) throw new Error("notes editor not found");
+    const dt = new DataTransfer();
+    dt.setData("text/plain", markdown);
+    const evt = new ClipboardEvent("paste", {
+      clipboardData: dt,
+      bubbles: true,
+      cancelable: true,
+    });
+    el.dispatchEvent(evt);
+  }, md);
+  await expect(page.locator(".ProseMirror h1").first()).toHaveText("Complexity");
+  await expect(page.locator(".ProseMirror pre").first()).toBeVisible();
+  await expect(page.getByText(/^Saved/)).toBeVisible({ timeout: 10000 });
+  await page.getByRole("link", { name: "Library" }).first().click();
+  await page.getByRole("link", { name: "Notes" }).first().click();
+  await expect(page.getByText("Takeaway: use a hashmap")).toBeVisible();
+
   // Review it (Today page should show it due immediately)
   await page.goto("/today");
   await expect(page.getByRole("heading", { name: "Due reviews" })).toBeVisible();
